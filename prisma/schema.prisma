@@ -1,0 +1,160 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  MANAGER
+  ACCOUNTANT
+  STAFF
+}
+
+enum ProductCategory {
+  PVC
+  CEMENT
+  IRON
+  WOOD
+}
+
+enum InvoiceStatus {
+  PAID
+  CREDIT
+}
+
+enum PurchaseStatus {
+  PAID
+  DUE
+}
+
+enum TransactionType {
+  PAYMENT_IN
+  PAYMENT_OUT
+  EXPENSE
+}
+
+model User {
+  id            String   @id @default(uuid())
+  name          String
+  email         String   @unique
+  password_hash String
+  role          Role     @default(STAFF)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+}
+
+model Supplier {
+  id             String         @id @default(uuid())
+  name           String
+  phone          String?
+  address        String?        @db.Text
+  total_payables Float          @default(0)
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+  products       Product[]
+  purchases      PurchaseBill[]
+}
+
+model Customer {
+  id                 String    @id @default(uuid())
+  name               String
+  phone              String?
+  address            String?   @db.Text
+  total_purchases    Float     @default(0)
+  outstanding_amount Float     @default(0)
+  credit_limit       Float     @default(0)
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+  invoices           Invoice[]
+}
+
+model Product {
+  id              String          @id @default(uuid())
+  name            String
+  category        ProductCategory
+  brand           String?
+  sku_code        String?         @unique
+  unit            String          // sq ft, bag, kg, piece
+  purchase_price  Float
+  selling_price   Float
+  gst_percent     Float           @default(0)
+  current_stock   Float           @default(0)
+  min_stock_alert Float           @default(10)
+  supplier_id     String?
+  supplier        Supplier?       @relation(fields: [supplier_id], references: [id])
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+  invoiceItems    InvoiceItem[]
+  purchaseItems   PurchaseItem[]
+}
+
+model Invoice {
+  id             String        @id @default(uuid())
+  invoice_number String        @unique
+  customer_id    String
+  customer       Customer      @relation(fields: [customer_id], references: [id])
+  total_amount   Float
+  total_gst      Float         @default(0)
+  status         InvoiceStatus @default(CREDIT)
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  items          InvoiceItem[]
+}
+
+model InvoiceItem {
+  id             String   @id @default(uuid())
+  invoice_id     String
+  invoice        Invoice  @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  product_id     String
+  product        Product  @relation(fields: [product_id], references: [id], onDelete: Restrict)
+  quantity       Float
+  price_per_unit Float
+  gst_amount     Float    @default(0)
+  total          Float
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model PurchaseBill {
+  id           String         @id @default(uuid())
+  bill_number  String         @unique
+  supplier_id  String
+  supplier     Supplier       @relation(fields: [supplier_id], references: [id])
+  total_amount Float
+  total_gst    Float          @default(0)
+  status       PurchaseStatus @default(DUE)
+  due_date     DateTime?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+  items        PurchaseItem[]
+}
+
+model PurchaseItem {
+  id                      String       @id @default(uuid())
+  purchase_id             String
+  purchase                PurchaseBill @relation(fields: [purchase_id], references: [id], onDelete: Cascade)
+  product_id              String
+  product                 Product      @relation(fields: [product_id], references: [id], onDelete: Restrict)
+  quantity                Float
+  purchase_price_per_unit Float
+  gst_amount              Float        @default(0)
+  total                   Float
+  createdAt               DateTime     @default(now())
+  updatedAt               DateTime     @updatedAt
+}
+
+model Transaction {
+  id               String          @id @default(uuid())
+  type             TransactionType
+  amount           Float
+  reference_id     String?         // Could be customer_id, supplier_id, or null for general expense
+  expense_category String?         // transport, rent, electricity, labor, misc
+  date             DateTime        @default(now())
+  description      String?         @db.Text
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+}
