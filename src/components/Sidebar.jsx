@@ -1,10 +1,18 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import { Mountain, LayoutDashboard, Package, ShoppingCart, Users, Truck, Receipt, Settings, LogOut, FileSpreadsheet, Shield } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
 
-export function Sidebar({ userRole }) {
+export function Sidebar() {
   const router = useRouter();
+  const [userRole, setUserRole] = useState(null);
+
+  useEffect(() => {
+    fetch("/api/auth/me").then(res => res.json()).then(data => setUserRole(data.role)).catch(() => {});
+  }, []);
 
   const handleLogout = async () => {
     await fetch("/api/auth/logout", { method: "POST" });
@@ -22,14 +30,16 @@ export function Sidebar({ userRole }) {
 
       <nav className="flex-1 overflow-auto py-4">
         <div className="grid gap-1 px-2">
-          <SidebarItem href="/dashboard" icon={<LayoutDashboard className="h-4 w-4" />} label="Dashboard" />
+          {userRole !== 'STAFF' && <SidebarItem href="/dashboard" icon={<LayoutDashboard className="h-4 w-4" />} label="Dashboard" />}
           <SidebarItem href="/dashboard/inventory" icon={<Package className="h-4 w-4" />} label="Inventory" />
           <SidebarItem href="/dashboard/sales" icon={<ShoppingCart className="h-4 w-4" />} label="Sales & GST" />
-          <SidebarItem href="/dashboard/purchases" icon={<Truck className="h-4 w-4" />} label="Purchases" />
+          {userRole !== 'STAFF' && <SidebarItem href="/dashboard/purchases" icon={<Truck className="h-4 w-4" />} label="Purchases" />}
           <SidebarItem href="/dashboard/customers" icon={<Users className="h-4 w-4" />} label="Customers" />
-          <SidebarItem href="/dashboard/suppliers" icon={<Users className="h-4 w-4" />} label="Suppliers" />
+          {(userRole === 'ADMIN' || userRole === 'MANAGER') && (
+            <SidebarItem href="/dashboard/suppliers" icon={<Users className="h-4 w-4" />} label="Suppliers" />
+          )}
           <SidebarItem href="/dashboard/expenses" icon={<Receipt className="h-4 w-4" />} label="Expenses" />
-          <SidebarItem href="/dashboard/reports" icon={<FileSpreadsheet className="h-4 w-4" />} label="Reports" />
+          {userRole !== 'STAFF' && <SidebarItem href="/dashboard/reports" icon={<FileSpreadsheet className="h-4 w-4" />} label="Reports" />}
           {userRole === 'ADMIN' && (
             <SidebarItem href="/dashboard/users" icon={<Shield className="h-4 w-4" />} label="System Users" />
           )}

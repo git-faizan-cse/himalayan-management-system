@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { verifySession } from '@/lib/auth';
 
 export async function GET(req) {
   try {
@@ -14,6 +15,13 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
+    const sessionCookie = req.cookies.get('himalaya_session')?.value;
+    const payload = await verifySession(sessionCookie);
+
+    if (!payload?.role || (payload.role !== 'ADMIN' && payload.role !== 'MANAGER')) {
+      return NextResponse.json({ error: 'Forbidden: Only Admins and Managers can add suppliers' }, { status: 403 });
+    }
+
     const data = await req.json();
     const newSupplier = await prisma.supplier.create({
       data: {

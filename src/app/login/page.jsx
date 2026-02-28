@@ -10,7 +10,7 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -24,7 +24,7 @@ export default function LoginPage() {
       const res = await fetch("/api/auth/login", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: identifier, password }), // Backend parses email vs username interchangeably
       });
 
       const data = await res.json();
@@ -61,7 +61,7 @@ export default function LoginPage() {
           <CardHeader className="space-y-1">
             <CardTitle className="text-xl">Sign in</CardTitle>
             <CardDescription>
-              Enter your email and password to access the portal.
+              Enter your email or username and password to access the portal.
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -72,13 +72,13 @@ export default function LoginPage() {
                 </div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="identifier">Email or Username</Label>
                 <Input 
-                  id="email" 
-                  type="email" 
-                  placeholder="admin@himalayan.com" 
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="identifier" 
+                  type="text" 
+                  placeholder="admin@himalayan.com or adminuser" 
+                  value={identifier}
+                  onChange={(e) => setIdentifier(e.target.value)}
                   required 
                 />
               </div>

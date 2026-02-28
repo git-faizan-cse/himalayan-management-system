@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { verifySession } from '@/lib/auth';
 
 export async function GET() {
   try {
@@ -33,6 +34,13 @@ export async function POST(req) {
 
 export async function DELETE(req) {
   try {
+    const sessionCookie = req.cookies.get('himalaya_session')?.value;
+    const payload = await verifySession(sessionCookie);
+
+    if (!payload?.role || (payload.role !== 'ADMIN' && payload.role !== 'MANAGER')) {
+      return NextResponse.json({ error: 'Forbidden: Only Admins and Managers can delete expenses' }, { status: 403 });
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
     await prisma.transaction.delete({ where: { id } });

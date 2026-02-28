@@ -1,8 +1,16 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { verifySession } from '@/lib/auth';
 
 export async function PUT(req, { params }) {
   try {
+    const sessionCookie = req.cookies.get('himalaya_session')?.value;
+    const payload = await verifySession(sessionCookie);
+
+    if (!payload?.role || (payload.role !== 'ADMIN' && payload.role !== 'MANAGER')) {
+      return NextResponse.json({ error: 'Forbidden: Only Admins and Managers can edit customers' }, { status: 403 });
+    }
+
     const { id } = await params;
     const data = await req.json();
 
@@ -25,11 +33,21 @@ export async function PUT(req, { params }) {
 
 export async function DELETE(req, { params }) {
   try {
+    const sessionCookie = req.cookies.get('himalaya_session')?.value;
+    const payload = await verifySession(sessionCookie);
+
+    if (!payload?.role || (payload.role !== 'ADMIN' && payload.role !== 'MANAGER')) {
+      return NextResponse.json({ error: 'Forbidden: Only Admins and Managers can delete customers' }, { status: 403 });
+    }
+
     const { id } = await params;
     await prisma.customer.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Delete customer error:', error);
+    if (error.code === 'P2003') {
+      return NextResponse.json({ error: 'Cannot delete customer with existing invoices.' }, { status: 400 });
+    }
     return NextResponse.json({ error: 'Failed to delete customer' }, { status: 500 });
   }
 }

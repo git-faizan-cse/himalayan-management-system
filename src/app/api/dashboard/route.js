@@ -10,7 +10,10 @@ export async function GET() {
     const [
       salesToday,
       salesMonth,
+      salesAllTime,
+      purchasesToday,
       purchasesMonth,
+      purchasesAllTime,
       totalReceivables,
       totalPayables,
       totalExpenses,
@@ -20,11 +23,14 @@ export async function GET() {
     ] = await Promise.all([
       prisma.invoice.aggregate({ _sum: { total_amount: true }, where: { createdAt: { gte: startOfToday } } }),
       prisma.invoice.aggregate({ _sum: { total_amount: true, total_gst: true }, where: { createdAt: { gte: startOfMonth } } }),
+      prisma.invoice.aggregate({ _sum: { total_amount: true } }),
+      prisma.purchaseBill.aggregate({ _sum: { total_amount: true }, where: { createdAt: { gte: startOfToday } } }),
       prisma.purchaseBill.aggregate({ _sum: { total_amount: true }, where: { createdAt: { gte: startOfMonth } } }),
+      prisma.purchaseBill.aggregate({ _sum: { total_amount: true } }),
       prisma.customer.aggregate({ _sum: { outstanding_amount: true } }),
       prisma.supplier.aggregate({ _sum: { total_payables: true } }),
       prisma.transaction.aggregate({ _sum: { amount: true }, where: { type: 'EXPENSE', date: { gte: startOfMonth } } }),
-      prisma.product.findMany({ select: { id: true, name: true, current_stock: true, min_stock_alert: true, category: true, purchase_price: true } }),
+      prisma.product.findMany({ select: { id: true, name: true, current_stock: true, min_stock_alert: true, category: true, selling_price: true } }),
       prisma.invoiceItem.groupBy({
         by: ['product_id'],
         _sum: { quantity: true, total: true },
@@ -41,8 +47,8 @@ export async function GET() {
     // Low stock: filter in JS to avoid raw query issues
     const lowStock = allProducts.filter(p => p.current_stock <= p.min_stock_alert);
 
-    // Total Inventory Value
-    const totalInvested = allProducts.reduce((sum, p) => sum + (p.current_stock * p.purchase_price), 0);
+    // Inventory Market Value (Based on Selling Price)
+    const inventoryMarketValue = allProducts.reduce((sum, p) => sum + (p.current_stock * (p.selling_price || 0)), 0);
 
     // Resolve top product names
     const productIds = topProducts.map(t => t.product_id);
@@ -61,14 +67,17 @@ export async function GET() {
     return NextResponse.json({
       salesToday: salesToday._sum.total_amount || 0,
       salesMonth: monthSalesTotal,
+      salesAllTime: salesAllTime._sum.total_amount || 0,
       salesGSTMonth: monthSalesGST,
+      purchasesToday: purchasesToday._sum.total_amount || 0,
       purchasesMonth: monthlyPurchases,
+      purchasesAllTime: purchasesAllTime._sum.total_amount || 0,
       expensesMonth: monthlyExpenses,
       estimatedProfit,
       totalReceivables: totalReceivables._sum.outstanding_amount || 0,
       totalPayables: totalPayables._sum.total_payables || 0,
       lowStockItems: lowStock,
-      totalInvested,
+      inventoryMarketValue,
       topProducts: topProductsResolved,
       recentInvoices,
     });

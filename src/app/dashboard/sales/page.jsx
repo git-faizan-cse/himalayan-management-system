@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useRef } from "react";
-import { Plus, X, Search, CheckCircle, AlertCircle, Printer } from "lucide-react";
+import { Plus, X, Search, CheckCircle, AlertCircle, Printer, Pencil } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -20,6 +20,8 @@ export default function SalesPage() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [userRole, setUserRole] = useState(null);
+  const [editingId, setEditingId] = useState(null);
 
   const [form, setForm] = useState({
     customer_id: "",
@@ -29,10 +31,11 @@ export default function SalesPage() {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [inv, cust, prod] = await Promise.all([
+    const [inv, cust, prod, me] = await Promise.all([
       fetch("/api/sales").then(r => r.json()),
       fetch("/api/customers").then(r => r.json()),
       fetch("/api/products").then(r => r.json()),
+      fetch("/api/auth/me").then(r => r.json()),
     ]);
     // Fetch full details for products in invoices
     const fullInvoices = await Promise.all(inv.map(async i => {
@@ -42,12 +45,14 @@ export default function SalesPage() {
     setInvoices(fullInvoices);
     setCustomers(cust);
     setProducts(prod);
+    setUserRole(me.role);
     setLoading(false);
   };
 
   useEffect(() => { fetchAll(); }, []);
 
   const openNewInvoice = () => {
+    setEditingId(null);
     setForm({
       customer_id: "",
       status: "CREDIT",
@@ -55,6 +60,26 @@ export default function SalesPage() {
     });
     setOpen(true);
   };
+
+  const openEditInvoice = (inv) => {
+    setEditingId(inv.id);
+    setForm({
+      customer_id: inv.customer_id,
+      status: inv.status,
+      items: inv.items.map(i => ({
+        product_id: i.product_id,
+        price_per_unit: i.price_per_unit,
+        quantity: i.quantity,
+        gst_percent: validateGst(i.product?.gst_percent || 0), // fallback to 0 if no product linked
+        unit: i.product?.unit || "",
+        total: i.total,
+        gst_amount: i.gst_amount
+      }))
+    });
+    setOpen(true);
+  };
+
+  const validateGst = (gst) => gst || 0;
 
   const addRow = () => {
     setForm(f => ({ ...f, items: [...f.items, { product_id: "", price_per_unit: 0, quantity: 1, gst_percent: 18, unit: "" }] }));
@@ -82,7 +107,7 @@ export default function SalesPage() {
 
   const getLineTotals = (item) => {
     const base = item.quantity * item.price_per_unit;
-    const gst = (base * item.gst_percent) / 100;
+    const gst = (base * (item.gst_percent || 0)) / 100;
     return { base, gst, total: base + gst };
   };
 
@@ -96,16 +121,29 @@ export default function SalesPage() {
     }
     
     try {
-      const res = await fetch("/api/sales", {
-        method: "POST",
+      const payload = {
+        ...form,
+        total_amount: grandTotal,
+        total_gst: grandGST,
+        items: form.items.map(i => {
+          const t = getLineTotals(i);
+          return { ...i, total: t.total, gst_amount: t.gst };
+        })
+      };
+
+      const url = editingId ? `/api/sales/${editingId}` : "/api/sales";
+      const method = editingId ? "PUT" : "POST";
+
+      const res = await fetch(url, {
+        method,
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(form),
+        body: JSON.stringify(payload),
       });
       
       const data = await res.json();
       
       if (!res.ok) {
-        alert(data.error || "Failed to create invoice.");
+        alert(data.error || "Failed to save invoice.");
         return;
       }
       
@@ -136,11 +174,11 @@ export default function SalesPage() {
         </Button>
       </div>
 
-      {/* Invoice Creation Dialog */}
+      {/* Invoice Creation/Edit Dialog */}
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-zinc-950">
           <DialogHeader>
-            <DialogTitle className="text-xl">Create GST Invoice</DialogTitle>
+            <DialogTitle className="text-xl">{editingId ? `Edit Invoice` : "Create GST Invoice"}</DialogTitle>
           </DialogHeader>
 
           <div className="grid grid-cols-2 gap-4 py-2">
@@ -198,10 +236,10 @@ export default function SalesPage() {
                         <Input type="number" className="w-16 text-xs" value={item.quantity} min={1} onChange={(e) => updateItem(idx, "quantity", parseFloat(e.target.value))} />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" className="w-24 text-xs" value={item.price_per_unit} onChange={(e) => updateItem(idx, "price_per_unit", parseFloat(e.target.value))} />
+                        <Input type="number" className="w-24 text-xs" value={item.price_per_unit} disabled={userRole === 'STAFF'} onChange={(e) => updateItem(idx, "price_per_unit", parseFloat(e.target.value))} />
                       </TableCell>
                       <TableCell>
-                        <Input type="number" className="w-16 text-xs" value={item.gst_percent} onChange={(e) => updateItem(idx, "gst_percent", parseFloat(e.target.value))} />
+                        <Input type="number" className="w-16 text-xs" value={item.gst_percent} disabled={userRole === 'STAFF'} onChange={(e) => updateItem(idx, "gst_percent", parseFloat(e.target.value))} />
                       </TableCell>
                       <TableCell className="font-medium">₹{total.toFixed(2)}</TableCell>
                       <TableCell>
@@ -229,7 +267,7 @@ export default function SalesPage() {
 
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={saveInvoice} className="bg-blue-600 hover:bg-blue-700 text-white">Save Invoice</Button>
+            <Button onClick={saveInvoice} className="bg-blue-600 hover:bg-blue-700 text-white">{editingId ? "Update Invoice" : "Save Invoice"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -275,6 +313,12 @@ export default function SalesPage() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right flex justify-end gap-1">
+                      {userRole === 'ADMIN' && (
+                        <Button size="sm" variant="ghost" className="text-blue-600 hover:bg-blue-50" onClick={() => openEditInvoice(inv)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      
                       {inv.status === "CREDIT" && (
                         <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50" onClick={() => markPaid(inv.id)}>
                           <CheckCircle className="mr-1 h-3 w-3" /> Mark Paid

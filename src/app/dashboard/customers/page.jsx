@@ -17,6 +17,7 @@ export default function CustomersPage() {
   const [editingId, setEditingId] = useState(null);
 
   const [formData, setFormData] = useState({ name: "", phone: "", address: "", credit_limit: 0 });
+  const [userRole, setUserRole] = useState(null);
 
   const fetchCustomers = async () => {
     setLoading(true);
@@ -28,7 +29,10 @@ export default function CustomersPage() {
     }
   };
 
-  useEffect(() => { fetchCustomers(); }, []);
+  useEffect(() => { 
+    fetchCustomers(); 
+    fetch("/api/auth/me").then(r => r.json()).then(d => setUserRole(d.role));
+  }, []);
 
   const openAddModal = () => {
     setEditingId(null);
@@ -114,8 +118,12 @@ export default function CustomersPage() {
                   <TableCell className={c.outstanding_amount > 0 ? "text-red-600 font-medium" : ""}>₹{c.outstanding_amount}</TableCell>
                   <TableCell>₹{c.credit_limit || 0}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => openEditModal(c)}><Pencil className="h-4 w-4 text-blue-600" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => deleteCustomer(c.id)}><Trash2 className="h-4 w-4 text-red-600" /></Button>
+                    {(userRole === 'ADMIN' || userRole === 'MANAGER') && (
+                      <Button variant="ghost" size="icon" onClick={() => openEditModal(c)}><Pencil className="h-4 w-4 text-blue-600" /></Button>
+                    )}
+                    {(userRole === 'ADMIN' || userRole === 'MANAGER') && (
+                      <Button variant="ghost" size="icon" onClick={() => deleteCustomer(c.id)}><Trash2 className="h-4 w-4 text-red-600" /></Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

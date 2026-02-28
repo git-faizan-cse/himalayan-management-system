@@ -18,6 +18,7 @@ export default function ExpensesPage() {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [form, setForm] = useState({ expense_category: "", amount: 0, description: "", date: new Date().toISOString().split("T")[0] });
+  const [userRole, setUserRole] = useState(null);
 
   const fetchExpenses = async () => {
     setLoading(true);
@@ -26,7 +27,10 @@ export default function ExpensesPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchExpenses(); }, []);
+  useEffect(() => { 
+    fetchExpenses(); 
+    fetch("/api/auth/me").then(r => r.json()).then(d => setUserRole(d.role));
+  }, []);
 
   const saveExpense = async () => {
     if (!form.expense_category || !form.amount) { alert("Category and amount required."); return; }
@@ -129,7 +133,9 @@ export default function ExpensesPage() {
                     <TableCell className="text-zinc-500 text-sm">{e.description || "—"}</TableCell>
                     <TableCell className="font-semibold text-red-600">₹{e.amount.toFixed(2)}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="ghost" size="icon" onClick={() => deleteExpense(e.id)}><Trash2 className="h-4 w-4 text-red-600" /></Button>
+                      {(userRole === 'ADMIN' || userRole === 'MANAGER') && (
+                        <Button variant="ghost" size="icon" onClick={() => deleteExpense(e.id)}><Trash2 className="h-4 w-4 text-red-600" /></Button>
+                      )}
                     </TableCell>
                   </TableRow>
                 ))

@@ -30,27 +30,31 @@ export default function InventoryPage() {
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [userRole, setUserRole] = useState(null);
 
   const [formData, setFormData] = useState({
     name: "", category: "PVC", brand: "", sku_code: "", unit: "piece",
     purchase_price: 0, selling_price: 0, gst_percent: 18, current_stock: 0, min_stock_alert: 10
   });
 
-  const fetchProducts = async () => {
+  const fetchData = async () => {
     setLoading(true);
     try {
-      const res = await fetch("/api/products");
-      const data = await res.json();
-      setProducts(data);
+      const [roleRes, prodRes] = await Promise.all([
+        fetch("/api/auth/me").then(r => r.json()),
+        fetch("/api/products").then(r => r.json())
+      ]);
+      setUserRole(roleRes.role);
+      setProducts(prodRes);
     } catch (error) {
-      console.error("Failed to load products");
+      console.error("Failed to load inventory data");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchProducts();
+    fetchData();
   }, []);
 
   const handleChange = (e) => {
@@ -80,20 +84,31 @@ export default function InventoryPage() {
     const method = editingId ? "PUT" : "POST";
     const url = editingId ? `/api/products/${editingId}` : "/api/products";
 
-    await fetch(url, {
+    const res = await fetch(url, {
       method,
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(formData),
     });
 
+    if (!res.ok) {
+       const err = await res.json();
+       alert(err.error || "Failed to save product due to permissions.");
+       return;
+    }
+
     setOpen(false);
-    fetchProducts();
+    fetchData();
   };
 
   const deleteProduct = async (id) => {
     if (confirm("Are you sure you want to delete this product?")) {
-      await fetch(`/api/products/${id}`, { method: "DELETE" });
-      fetchProducts();
+      const res = await fetch(`/api/products/${id}`, { method: "DELETE" });
+      if (!res.ok) {
+         const err = await res.json();
+         alert(err.error || "Failed to delete product due to permissions.");
+         return;
+      }
+      fetchData();
     }
   };
 
@@ -103,28 +118,32 @@ export default function InventoryPage() {
     p.category.toLowerCase().includes(search.toLowerCase())
   );
 
-  const totalInventoryValue = products.reduce((sum, p) => sum + (p.current_stock * p.purchase_price), 0);
+  const totalInventoryValue = products.reduce((sum, p) => sum + (p.current_stock * p.selling_price), 0);
+
+  const isAdminOrManager = userRole === 'ADMIN' || userRole === 'MANAGER';
 
   return (
     <div className="flex-1 space-y-4 p-8 pt-6">
       <div className="flex items-center justify-between">
         <h2 className="text-3xl font-bold tracking-tight">Inventory Management</h2>
-        <Button onClick={openAddModal} className="bg-blue-600 hover:bg-blue-700 text-white">
-          <Plus className="mr-2 h-4 w-4" /> Add Product
-        </Button>
+        {userRole !== 'STAFF' && (
+          <Button onClick={openAddModal} className="bg-blue-600 hover:bg-blue-700 text-white">
+            <Plus className="mr-2 h-4 w-4" /> Add Product
+          </Button>
+        )}
       </div>
 
       <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card className="bg-gradient-to-br from-indigo-50 to-white dark:from-zinc-900 border-indigo-100 dark:border-zinc-800 shadow-sm">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-semibold text-indigo-800 dark:text-indigo-400">Grand Total Value</CardTitle>
+            <CardTitle className="text-sm font-semibold text-indigo-800 dark:text-indigo-400">Inventory Market Value</CardTitle>
             <IndianRupee className="h-4 w-4 text-indigo-600" />
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-indigo-950 dark:text-white">
               ₹{totalInventoryValue.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
             </div>
-            <p className="text-xs text-indigo-600/80 mt-1">Based on current purchase prices</p>
+            <p className="text-xs text-indigo-600/80 mt-1">Based on current selling prices</p>
           </CardContent>
         </Card>
       </div>
@@ -167,17 +186,20 @@ export default function InventoryPage() {
               <Label htmlFor="gst_percent">GST %</Label>
               <Input id="gst_percent" name="gst_percent" type="number" value={formData.gst_percent} onChange={handleChange} />
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="purchase_price">Purchase Price (₹) *</Label>
-              <Input id="purchase_price" name="purchase_price" type="number" value={formData.purchase_price} onChange={handleChange} />
-            </div>
+            {isAdminOrManager && (
+              <div className="space-y-2">
+                <Label htmlFor="purchase_price">Purchase Price (₹) *</Label>
+                <Input id="purchase_price" name="purchase_price" type="number" value={formData.purchase_price} onChange={handleChange} />
+              </div>
+            )}
             <div className="space-y-2">
               <Label htmlFor="selling_price">Selling Price (₹) *</Label>
               <Input id="selling_price" name="selling_price" type="number" value={formData.selling_price} onChange={handleChange} />
             </div>
             <div className="space-y-2">
               <Label htmlFor="current_stock">Initial Stock *</Label>
-              <Input id="current_stock" name="current_stock" type="number" value={formData.current_stock} onChange={handleChange} />
+              <Input id="current_stock" name="current_stock" type="number" disabled={userRole === 'ACCOUNTANT'} value={formData.current_stock} onChange={handleChange} />
+              {userRole === 'ACCOUNTANT' && <p className="text-[10px] text-amber-600">Accountants cannot manually alter stock.</p>}
             </div>
             <div className="space-y-2">
               <Label htmlFor="min_stock_alert">Low Stock Alert Level *</Label>
@@ -215,20 +237,20 @@ export default function InventoryPage() {
                   <TableHead>Name</TableHead>
                   <TableHead>Category</TableHead>
                   <TableHead>Stock</TableHead>
-                  <TableHead>Purch (₹)</TableHead>
+                  {isAdminOrManager && <TableHead>Purch (₹)</TableHead>}
                   <TableHead>Sell (₹)</TableHead>
-                  <TableHead>Total Value (₹)</TableHead>
-                  <TableHead className="text-right">Actions</TableHead>
+                  <TableHead>Market Value (₹)</TableHead>
+                  {userRole !== 'STAFF' && <TableHead className="text-right">Actions</TableHead>}
                 </TableRow>
               </TableHeader>
               <TableBody>
                 {filteredProducts.length === 0 ? (
                   <TableRow>
-                     <TableCell colSpan={8} className="text-center text-zinc-500 py-6">No products found.</TableCell>
+                     <TableCell colSpan={isAdminOrManager ? 8 : 7} className="text-center text-zinc-500 py-6">No products found.</TableCell>
                   </TableRow>
                 ) : (
                   filteredProducts.map((p) => {
-                    const totalVal = p.current_stock * p.purchase_price;
+                    const totalVal = p.current_stock * p.selling_price;
                     return (
                       <TableRow key={p.id}>
                         <TableCell className="font-medium text-xs text-zinc-500">{p.sku_code || '---'}</TableCell>
@@ -242,19 +264,23 @@ export default function InventoryPage() {
                             {p.current_stock}
                           </div>
                         </TableCell>
-                        <TableCell>₹{p.purchase_price}</TableCell>
+                        {isAdminOrManager && <TableCell>₹{p.purchase_price}</TableCell>}
                         <TableCell>₹{p.selling_price}</TableCell>
                         <TableCell className="font-semibold text-indigo-700 dark:text-indigo-400">
                           ₹{totalVal.toLocaleString('en-IN', { maximumFractionDigits: 2 })}
                         </TableCell>
-                        <TableCell className="text-right">
-                          <Button variant="ghost" size="icon" onClick={() => openEditModal(p)}>
-                            <Pencil className="h-4 w-4 text-blue-600" />
-                          </Button>
-                          <Button variant="ghost" size="icon" onClick={() => deleteProduct(p.id)}>
-                            <Trash2 className="h-4 w-4 text-red-600" />
-                          </Button>
-                        </TableCell>
+                        {userRole !== 'STAFF' && (
+                          <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" onClick={() => openEditModal(p)}>
+                              <Pencil className="h-4 w-4 text-blue-600" />
+                            </Button>
+                            {userRole !== 'ACCOUNTANT' && (
+                              <Button variant="ghost" size="icon" onClick={() => deleteProduct(p.id)}>
+                                <Trash2 className="h-4 w-4 text-red-600" />
+                              </Button>
+                            )}
+                          </TableCell>
+                        )}
                       </TableRow>
                     );
                   })

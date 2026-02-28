@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Plus, X, CheckCircle, Search } from "lucide-react";
+import { Plus, X, CheckCircle, Search, Pencil, Printer } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -10,6 +10,8 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { PDFDownloadLink } from "@react-pdf/renderer";
+import { PurchaseBillPDF } from "@/components/PurchaseBillPDF";
 
 export default function PurchasesPage() {
   const [purchases, setPurchases] = useState([]);
@@ -18,6 +20,8 @@ export default function PurchasesPage() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
+  const [editingId, setEditingId] = useState(null);
+  const [userRole, setUserRole] = useState(null);
 
   const [form, setForm] = useState({
     supplier_id: "",
@@ -28,21 +32,50 @@ export default function PurchasesPage() {
 
   const fetchAll = async () => {
     setLoading(true);
-    const [pur, sup, prod] = await Promise.all([
+    const [pur, sup, prod, me] = await Promise.all([
       fetch("/api/purchases").then(r => r.json()),
       fetch("/api/suppliers").then(r => r.json()),
       fetch("/api/products").then(r => r.json()),
+      fetch("/api/auth/me").then(r => r.json()),
     ]);
-    setPurchases(pur);
+    
+    // Fetch full details (items) for each purchase bill
+    const fullBills = await Promise.all(pur.map(async b => {
+        const req = await fetch(`/api/purchases/${b.id}`);
+        if(req.ok) return await req.json();
+        return b; // fallback if fetching fails somehow
+    }));
+    
+    setPurchases(fullBills);
     setSuppliers(sup);
     setProducts(prod);
+    setUserRole(me.role);
     setLoading(false);
   };
 
   useEffect(() => { fetchAll(); }, []);
 
   const openNewBill = () => {
+    setEditingId(null);
     setForm({ supplier_id: "", status: "DUE", due_date: "", items: [{ product_id: "", purchase_price_per_unit: 0, quantity: 1, gst_percent: 0 }] });
+    setOpen(true);
+  };
+
+  const openEditBill = (bill) => {
+    setEditingId(bill.id);
+    setForm({
+      supplier_id: bill.supplier_id,
+      status: bill.status,
+      due_date: bill.due_date ? new Date(bill.due_date).toISOString().split('T')[0] : "",
+      items: bill.items.map(i => ({
+        product_id: i.product_id,
+        purchase_price_per_unit: i.purchase_price_per_unit,
+        quantity: i.quantity,
+        gst_percent: i.product?.gst_percent || 0,
+        total: i.total,
+        gst_amount: i.gst_amount
+      }))
+    });
     setOpen(true);
   };
 
@@ -83,11 +116,32 @@ export default function PurchasesPage() {
       alert("Please select a supplier and fill all product rows.");
       return;
     }
-    await fetch("/api/purchases", {
-      method: "POST",
+    
+    const payload = {
+      ...form,
+      total_amount: grandTotal,
+      total_gst: grandGST,
+      items: form.items.map(i => {
+        const t = getLineTotals(i);
+        return { ...i, total: t.total, gst_amount: t.gst };
+      })
+    };
+
+    const url = editingId ? `/api/purchases/${editingId}` : "/api/purchases";
+    const method = editingId ? "PUT" : "POST";
+
+    const res = await fetch(url, {
+      method,
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(form),
+      body: JSON.stringify(payload),
     });
+    
+    if(!res.ok) {
+        const data = await res.json();
+        alert(data.error || "Failed to save bill.");
+        return;
+    }
+    
     setOpen(false);
     fetchAll();
   };
@@ -116,7 +170,7 @@ export default function PurchasesPage() {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto bg-white dark:bg-zinc-950">
           <DialogHeader>
-            <DialogTitle className="text-xl">Enter Purchase Bill</DialogTitle>
+            <DialogTitle className="text-xl">{editingId ? "Edit Purchase Bill" : "Enter Purchase Bill"}</DialogTitle>
           </DialogHeader>
 
           <div className="grid grid-cols-3 gap-4 py-2">
@@ -203,7 +257,7 @@ export default function PurchasesPage() {
 
           <DialogFooter className="mt-4">
             <Button variant="outline" onClick={() => setOpen(false)}>Cancel</Button>
-            <Button onClick={savePurchase} className="bg-blue-600 hover:bg-blue-700 text-white">Save Purchase Bill</Button>
+            <Button onClick={savePurchase} className="bg-blue-600 hover:bg-blue-700 text-white">{editingId ? "Update Bill" : "Save Purchase Bill"}</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -248,12 +302,24 @@ export default function PurchasesPage() {
                     <TableCell>
                       <Badge variant={p.status === "PAID" ? "default" : "destructive"}>{p.status}</Badge>
                     </TableCell>
-                    <TableCell className="text-right">
+                    <TableCell className="text-right flex justify-end gap-1">
+                      {userRole === 'ADMIN' && (
+                        <Button size="sm" variant="ghost" className="text-blue-600 hover:bg-blue-50" onClick={() => openEditBill(p)}>
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
+                      
                       {p.status === "DUE" && (
                         <Button size="sm" variant="outline" className="text-green-600 border-green-600 hover:bg-green-50" onClick={() => markPaid(p.id)}>
                           <CheckCircle className="mr-1 h-3 w-3" /> Mark Paid
                         </Button>
                       )}
+
+                      <Button size="sm" variant="outline" asChild>
+                        <PDFDownloadLink document={<PurchaseBillPDF bill={p} />} fileName={`${p.bill_number}.pdf`}>
+                          {({ loading }) => loading ? "Loading..." : <><Printer className="h-4 w-4 mr-1 text-zinc-600" /> Print PDF</>}
+                        </PDFDownloadLink>
+                      </Button>
                     </TableCell>
                   </TableRow>
                 ))

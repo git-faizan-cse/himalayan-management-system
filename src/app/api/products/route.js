@@ -4,6 +4,10 @@ import { verifySession } from '@/lib/auth';
 
 export async function GET(req) {
   try {
+    const sessionCookie = req.cookies.get('himalaya_session')?.value;
+    const payload = await verifySession(sessionCookie);
+    const isAdminOrManager = payload?.role === 'ADMIN' || payload?.role === 'MANAGER';
+
     const products = await prisma.product.findMany({
       include: {
         supplier: {
@@ -12,7 +16,14 @@ export async function GET(req) {
       },
       orderBy: { createdAt: 'desc' }
     });
-    return NextResponse.json(products);
+
+    // Strip purchase_price for non-admin/manager
+    const sanitizedProducts = products.map(p => ({
+      ...p,
+      purchase_price: isAdminOrManager ? p.purchase_price : null
+    }));
+
+    return NextResponse.json(sanitizedProducts);
   } catch (error) {
     console.error('Fetch products error:', error);
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
@@ -21,7 +32,12 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
-    // Only Managers & Admins should add products ideally, but we keep it open for STAFF if needed
+    const sessionCookie = req.cookies.get('himalaya_session')?.value;
+    const payload = await verifySession(sessionCookie);
+    if (!payload?.role || payload.role === 'STAFF') {
+      return NextResponse.json({ error: 'Forbidden: Staff cannot create products' }, { status: 403 });
+    }
+
     const data = await req.json();
 
     const newProduct = await prisma.product.create({

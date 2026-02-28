@@ -17,6 +17,7 @@ export default function SuppliersPage() {
   const [editingId, setEditingId] = useState(null);
 
   const [formData, setFormData] = useState({ name: "", phone: "", address: "" });
+  const [userRole, setUserRole] = useState(null);
 
   const fetchSuppliers = async () => {
     setLoading(true);
@@ -28,7 +29,10 @@ export default function SuppliersPage() {
     }
   };
 
-  useEffect(() => { fetchSuppliers(); }, []);
+  useEffect(() => { 
+    fetchSuppliers(); 
+    fetch("/api/auth/me").then(r => r.json()).then(d => setUserRole(d.role));
+  }, []);
 
   const openAddModal = () => {
     setEditingId(null);
@@ -109,8 +113,12 @@ export default function SuppliersPage() {
                   </TableCell>
                   <TableCell className={s.total_payables > 0 ? "text-red-600 font-medium" : ""}>₹{s.total_payables}</TableCell>
                   <TableCell className="text-right">
-                    <Button variant="ghost" size="icon" onClick={() => openEditModal(s)}><Pencil className="h-4 w-4 text-blue-600" /></Button>
-                    <Button variant="ghost" size="icon" onClick={() => deleteSupplier(s.id)}><Trash2 className="h-4 w-4 text-red-600" /></Button>
+                    {(userRole === 'ADMIN' || userRole === 'MANAGER') && (
+                      <Button variant="ghost" size="icon" onClick={() => openEditModal(s)}><Pencil className="h-4 w-4 text-blue-600" /></Button>
+                    )}
+                    {(userRole === 'ADMIN' || userRole === 'MANAGER') && (
+                      <Button variant="ghost" size="icon" onClick={() => deleteSupplier(s.id)}><Trash2 className="h-4 w-4 text-red-600" /></Button>
+                    )}
                   </TableCell>
                 </TableRow>
               ))}

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { verifySession } from '@/lib/auth';
 
 export async function GET(req, { params }) {
   try {
@@ -21,9 +22,121 @@ export async function GET(req, { params }) {
   }
 }
 
+export async function PUT(req, { params }) {
+  try {
+    const sessionCookie = req.cookies.get('himalaya_session')?.value;
+    const payload = await verifySession(sessionCookie);
+
+    // ONLY ADMIN CAN EDIT FINALIZED INVOICES
+    if (payload?.role !== 'ADMIN') {
+      return NextResponse.json({ error: 'Forbidden: Only Admins can edit invoices' }, { status: 403 });
+    }
+
+    const { id } = await params;
+    const body = await req.json();
+    const { customer_id, items, total_amount, total_gst } = body;
+
+    if (!customer_id || !items || !items.length) {
+      return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
+    }
+
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Fetch old invoice details
+      const oldInvoice = await tx.invoice.findUnique({
+        where: { id },
+        include: { items: true }
+      });
+
+      if (!oldInvoice) {
+        throw new Error('Invoice not found');
+      }
+
+      // 2. Revert Old Stock Deductions
+      for (const oldItem of oldInvoice.items) {
+        await tx.product.update({
+          where: { id: oldItem.product_id },
+          data: { current_stock: { increment: oldItem.quantity } }
+        });
+      }
+
+      // 3. Revert Old Customer Ledgers
+      await tx.customer.update({
+        where: { id: oldInvoice.customer_id },
+        data: {
+          total_purchases: { decrement: oldInvoice.total_amount },
+          ...(oldInvoice.status === 'CREDIT' ? { outstanding_amount: { decrement: oldInvoice.total_amount } } : {})
+        }
+      });
+
+      // 4. Apply New Stock Deductions (and Validate)
+      for (const newItem of items) {
+        const product = await tx.product.findUnique({ where: { id: newItem.product_id } });
+        if (!product || product.current_stock < newItem.quantity) {
+          throw new Error(`Insufficient stock for product: ${product?.name || newItem.product_id}`);
+        }
+
+        await tx.product.update({
+          where: { id: newItem.product_id },
+          data: { current_stock: { decrement: newItem.quantity } }
+        });
+      }
+
+      // 5. Update Invoice Record
+      const updatedInvoice = await tx.invoice.update({
+        where: { id },
+        data: {
+          customer_id,
+          total_amount,
+          total_gst,
+        }
+      });
+
+      // 6. Replace Old Items
+      await tx.invoiceItem.deleteMany({ where: { invoice_id: id } });
+      await tx.invoiceItem.createMany({
+        data: items.map(item => ({
+          invoice_id: id,
+          product_id: item.product_id,
+          quantity: item.quantity,
+          price_per_unit: item.price_per_unit,
+          gst_amount: item.gst_amount,
+          total: item.total
+        }))
+      });
+
+      // 7. Apply New Customer Ledgers
+      await tx.customer.update({
+        where: { id: customer_id },
+        data: {
+          total_purchases: { increment: total_amount },
+          ...(oldInvoice.status === 'CREDIT' ? { outstanding_amount: { increment: total_amount } } : {})
+        }
+      });
+
+      return updatedInvoice;
+    });
+
+    return NextResponse.json(result);
+
+  } catch (error) {
+    console.error('Edit invoice error:', error);
+    if (error.message.includes('Insufficient stock') || error.message.includes('not found')) {
+      return NextResponse.json({ error: error.message }, { status: 400 });
+    }
+    return NextResponse.json({ error: 'Failed to update invoice' }, { status: 500 });
+  }
+}
+
 // Mark invoice as PAID
 export async function PATCH(req, { params }) {
   try {
+    const sessionCookie = req.cookies.get('himalaya_session')?.value;
+    const payload = await verifySession(sessionCookie);
+
+    if (!payload?.role) {
+      return NextResponse.json({ error: 'Forbidden: Unauthorized' }, { status: 403 });
+    }
+
     const { id } = await params;
     const invoice = await prisma.invoice.findUnique({ where: { id } });
     if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });

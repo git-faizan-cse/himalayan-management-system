@@ -32,9 +32,44 @@ export async function middleware(req) {
       }
     }
 
-    // Role-based auth example logic for future routes:
-    // if (pathname.startsWith('/dashboard/admin') && payload.role !== 'ADMIN') { ... }
-  }
+    const { role } = payload;
+
+    // RBAC logic for API and UI routes
+    // ---------------------------------
+    
+    // 1. ADMIN Only Routes (Users)
+    const isUserMgtRoute = pathname.startsWith('/api/users') || pathname.startsWith('/dashboard/users');
+    if (isUserMgtRoute && role !== 'ADMIN') {
+      return isApiRoute 
+        ? NextResponse.json({ error: 'Forbidden: Admins Only' }, { status: 403 })
+        : NextResponse.redirect(new URL('/dashboard/sales', req.url)); // Safe fallback route
+    }
+
+    // 2. STAFF Restrictions (No Reports, No Dashboard Financials)
+    const isDashboardRoot = pathname === '/dashboard';
+    const isReportsRoute = pathname.startsWith('/api/reports') || pathname.startsWith('/dashboard/reports');
+    const isSuppliersUiRoute = pathname.startsWith('/dashboard/suppliers');
+    const isSuppliersApiRoute = pathname.startsWith('/api/suppliers');
+    const isPurchasesRoute = pathname.startsWith('/api/purchases') || pathname.startsWith('/dashboard/purchases');
+    
+    if ((role === 'STAFF' || role === 'ACCOUNTANT') && (isSuppliersUiRoute || (isSuppliersApiRoute && req.method !== 'GET'))) {
+      return isApiRoute 
+        ? NextResponse.json({ error: 'Forbidden: Admins & Managers Only' }, { status: 403 })
+        : NextResponse.redirect(new URL('/dashboard/sales', req.url));
+    }
+
+    if (role === 'STAFF' && isPurchasesRoute) {
+      return isApiRoute 
+        ? NextResponse.json({ error: 'Forbidden: Staff cannot access purchases' }, { status: 403 })
+        : NextResponse.redirect(new URL('/dashboard/sales', req.url));
+    }
+
+    if (role === 'STAFF' && (isDashboardRoot || isReportsRoute || pathname.startsWith('/api/dashboard'))) {
+       return isApiRoute 
+        ? NextResponse.json({ error: 'Forbidden: Staff cannot access financial data' }, { status: 403 })
+        : NextResponse.redirect(new URL('/dashboard/sales', req.url));
+    }
+  } // <-- Closes if (isApiRoute || isDashboardRoute)
 
   // Redirect root to dashboard or login
   if (pathname === '/') {
