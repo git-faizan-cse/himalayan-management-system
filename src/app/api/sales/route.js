@@ -1,9 +1,20 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { verifySession } from '@/lib/auth';
 
 export async function GET(req) {
   try {
+    const sessionCookie = req.cookies.get('himalaya_session')?.value;
+    const payload = await verifySession(sessionCookie);
+
+    if (!payload?.tenantId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const invoices = await prisma.invoice.findMany({
+      where: {
+        tenant_id: payload.tenantId,
+      },
       include: {
         customer: { select: { name: true } },
         items: {
@@ -21,6 +32,13 @@ export async function GET(req) {
 
 export async function POST(req) {
   try {
+    const sessionCookie = req.cookies.get('himalaya_session')?.value;
+    const payload = await verifySession(sessionCookie);
+
+    if (!payload?.tenantId) {
+       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const data = await req.json();
     const { customer_id, items, status } = data;
 
@@ -29,14 +47,14 @@ export async function POST(req) {
     let total_gst = 0;
 
     for (const item of items) {
-      // Verify Stock
+      // Verify Stock and Ownership
       const product = await prisma.product.findUnique({
-        where: { id: item.product_id },
+        where: { id: item.product_id, tenant_id: payload.tenantId },
         select: { name: true, current_stock: true }
       });
 
       if (!product) {
-        return NextResponse.json({ error: `Product ID not found.` }, { status: 400 });
+        return NextResponse.json({ error: `Product ID not found or unauthorized.` }, { status: 400 });
       }
       
       if (product.current_stock < item.quantity) {
@@ -53,14 +71,27 @@ export async function POST(req) {
       total_gst += gst_amount;
     }
 
-    // Generate invoice number
-    const count = await prisma.invoice.count();
+    // Generate invoice number specific to the tenant
+    const count = await prisma.invoice.count({
+      where: { tenant_id: payload.tenantId }
+    });
     const invoice_number = `INV-${String(count + 1).padStart(5, '0')}`;
+
+    // Verify Customer ownership
+    const customer = await prisma.customer.findUnique({
+      where: { id: customer_id, tenant_id: payload.tenantId },
+      select: { id: true }
+    });
+
+    if (!customer) {
+      return NextResponse.json({ error: `Customer not found or unauthorized.` }, { status: 400 });
+    }
 
     // Create invoice and its items in a transaction
     const invoice = await prisma.$transaction(async (tx) => {
       const inv = await tx.invoice.create({
         data: {
+          tenant_id: payload.tenantId,
           invoice_number,
           customer_id,
           total_amount,

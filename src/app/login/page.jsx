@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Mountain } from "lucide-react";
+import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -97,10 +98,16 @@ export default function LoginPage() {
               </Button>
             </form>
           </CardContent>
-          <CardFooter className="flex flex-col border-t pt-4 px-6 gap-2">
+          <CardFooter className="flex flex-col border-t pt-4 px-6 gap-3">
             <p className="text-xs text-center text-zinc-500">
               Only authorized personnel can log in. Contact your admin for access.
             </p>
+            <div className="text-sm text-center text-zinc-600 dark:text-zinc-400">
+              Don&apos;t have an account?{" "}
+              <Link href="/register" className="text-blue-600 hover:text-blue-800 hover:underline dark:text-blue-400 dark:hover:text-blue-300 font-medium">
+                Register your business
+              </Link>
+            </div>
           </CardFooter>
         </Card>
       </div>

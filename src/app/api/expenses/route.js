@@ -2,10 +2,17 @@ import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifySession } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(req) {
   try {
+    const sessionCookie = req.cookies.get('himalaya_session')?.value;
+    const payload = await verifySession(sessionCookie);
+
+    if (!payload?.tenantId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const expenses = await prisma.transaction.findMany({
-      where: { type: 'EXPENSE' },
+      where: { type: 'EXPENSE', tenant_id: payload.tenantId },
       orderBy: { date: 'desc' }
     });
     return NextResponse.json(expenses);
@@ -16,9 +23,17 @@ export async function GET() {
 
 export async function POST(req) {
   try {
+    const sessionCookie = req.cookies.get('himalaya_session')?.value;
+    const payload = await verifySession(sessionCookie);
+
+    if (!payload?.tenantId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const data = await req.json();
     const expense = await prisma.transaction.create({
       data: {
+        tenant_id: payload.tenantId,
         type: 'EXPENSE',
         amount: parseFloat(data.amount),
         expense_category: data.expense_category,
@@ -37,12 +52,26 @@ export async function DELETE(req) {
     const sessionCookie = req.cookies.get('himalaya_session')?.value;
     const payload = await verifySession(sessionCookie);
 
-    if (!payload?.role || (payload.role !== 'ADMIN' && payload.role !== 'MANAGER')) {
+    if (!payload?.tenantId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!payload?.role || (payload.role !== 'SUPER_ADMIN' && payload.role !== 'ADMIN' && payload.role !== 'MANAGER')) {
       return NextResponse.json({ error: 'Forbidden: Only Admins and Managers can delete expenses' }, { status: 403 });
     }
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get('id');
+
+    // Verify ownership
+    const existing = await prisma.transaction.findFirst({
+        where: { id, tenant_id: payload.tenantId, type: 'EXPENSE' }
+    });
+
+    if (!existing) {
+        return NextResponse.json({ error: 'Expense not found' }, { status: 404 });
+    }
+
     await prisma.transaction.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {

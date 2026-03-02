@@ -33,7 +33,7 @@ export async function POST(req) {
     }
 
     // Create JWT Session
-    const { session, expiresAt } = await createSession(user.id, user.role);
+    const { session, expiresAt } = await createSession(user.id, user.role, user.tenant_id);
 
     const response = NextResponse.json({
       success: true,
@@ -42,6 +42,7 @@ export async function POST(req) {
         name: user.name,
         email: user.email,
         role: user.role,
+        tenantId: user.tenant_id,
       }
     });
 

@@ -4,7 +4,14 @@ import { verifySession } from '@/lib/auth';
 
 export async function GET(req) {
   try {
+    const sessionCookie = req.cookies.get('himalaya_session')?.value;
+    const payload = await verifySession(sessionCookie);
+    if (!payload?.tenantId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const categories = await prisma.category.findMany({
+      where: { tenant_id: payload.tenantId },
       orderBy: { name: 'asc' }
     });
     return NextResponse.json(categories);
@@ -18,7 +25,12 @@ export async function POST(req) {
   try {
     const sessionCookie = req.cookies.get('himalaya_session')?.value;
     const payload = await verifySession(sessionCookie);
-    if (!payload?.role || (payload.role !== 'ADMIN' && payload.role !== 'MANAGER')) {
+    
+    if (!payload?.tenantId) {
+       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    if (!payload?.role || (payload.role !== 'SUPER_ADMIN' && payload.role !== 'ADMIN' && payload.role !== 'MANAGER')) {
       return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
     }
 
@@ -29,6 +41,7 @@ export async function POST(req) {
 
     const newCategory = await prisma.category.create({
       data: {
+        tenant_id: payload.tenantId,
         name: data.name,
         description: data.description || null
       }

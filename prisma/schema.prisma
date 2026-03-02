@@ -8,12 +8,12 @@ datasource db {
 }
 
 enum Role {
-  ADMIN
+  SUPER_ADMIN // For the system owner
+  ADMIN // For the tenant owner
   MANAGER
   ACCOUNTANT
   STAFF
 }
-
 
 enum InvoiceStatus {
   PAID
@@ -31,137 +31,217 @@ enum TransactionType {
   EXPENSE
 }
 
+// ----------------------------------------------------------------------------
+// MULTI-TENANCY CORE
+// ----------------------------------------------------------------------------
+model Tenant {
+  id           String   @id @default(uuid())
+  company_name String
+  domain       String?  @unique // Optional: for custom domains/subdomains later
+  subscription String   @default("ACTIVE") // ACTIVE, SUSPENDED, TRIAL
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Global Relations (All data owned by this tenant)
+  users        User[]
+  suppliers    Supplier[]
+  customers    Customer[]
+  categories   Category[]
+  products     Product[]
+  invoices     Invoice[]
+  purchases    PurchaseBill[]
+  transactions Transaction[]
+}
+
+// ----------------------------------------------------------------------------
+// BUSINESS ENTITIES (All scoped to Tenant)
+// ----------------------------------------------------------------------------
+
 model User {
-  id            String   @id @default(uuid())
+  id        String @id @default(uuid())
+  tenant_id String
+  tenant    Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
   name          String
-  username      String   @unique
-  email         String   @unique
+  username      String   @unique // Keep global for login purposes
+  email         String   @unique // Keep global for login purposes
   password_hash String
   role          Role     @default(STAFF)
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
+
+  @@index([tenant_id])
 }
 
 model Supplier {
-  id             String         @id @default(uuid())
+  id        String @id @default(uuid())
+  tenant_id String
+  tenant    Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
   name           String
   phone          String?
-  address        String?        @db.Text
-  total_payables Float          @default(0)
-  createdAt      DateTime       @default(now())
-  updatedAt      DateTime       @updatedAt
-  products       Product[]
-  purchases      PurchaseBill[]
+  address        String?  @db.Text
+  total_payables Float    @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  products  Product[]
+  purchases PurchaseBill[]
+
+  @@index([tenant_id])
 }
 
 model Customer {
-  id                 String    @id @default(uuid())
+  id        String @id @default(uuid())
+  tenant_id String
+  tenant    Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
   name               String
   phone              String?
-  address            String?   @db.Text
-  total_purchases    Float     @default(0)
-  outstanding_amount Float     @default(0)
-  credit_limit       Float     @default(0)
-  createdAt          DateTime  @default(now())
-  updatedAt          DateTime  @updatedAt
-  invoices           Invoice[]
+  address            String?  @db.Text
+  total_purchases    Float    @default(0)
+  outstanding_amount Float    @default(0)
+  credit_limit       Float    @default(0)
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  invoices Invoice[]
+
+  @@index([tenant_id])
 }
 
 model Category {
-  id          String    @id @default(uuid())
-  name        String    @unique
-  description String?   @db.Text
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
-  products    Product[]
+  id        String @id @default(uuid())
+  tenant_id String
+  tenant    Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  name        String
+  description String?  @db.Text
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  products Product[]
+
+  // A category name must be unique only within a specific tenant
+  @@unique([tenant_id, name])
 }
 
 model Product {
-  id              String          @id @default(uuid())
+  id        String @id @default(uuid())
+  tenant_id String
+  tenant    Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
   name            String
   category_id     String
-  category        Category        @relation(fields: [category_id], references: [id])
+  category        Category  @relation(fields: [category_id], references: [id], onDelete: Restrict)
   brand           String?
   sku_code        String?
-  unit            String          // sq ft, bag, kg, piece
+  unit            String // sq ft, bag, kg, piece
   purchase_price  Float
   selling_price   Float
-  gst_percent     Float           @default(0)
-  current_stock   Float           @default(0)
-  min_stock_alert Float           @default(10)
+  gst_percent     Float     @default(0)
+  current_stock   Float     @default(0)
+  min_stock_alert Float     @default(10)
   supplier_id     String?
-  supplier        Supplier?       @relation(fields: [supplier_id], references: [id])
-  createdAt       DateTime        @default(now())
-  updatedAt       DateTime        @updatedAt
-  invoiceItems    InvoiceItem[]
-  purchaseItems   PurchaseItem[]
+  supplier        Supplier? @relation(fields: [supplier_id], references: [id], onDelete: SetNull)
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
-  @@unique([category_id, sku_code])
+  invoiceItems  InvoiceItem[]
+  purchaseItems PurchaseItem[]
+
+  // SKUs must be unique within a specific tenant (and optionally category, depending on biz logic. Let's do Tenant+SKU)
+  @@unique([tenant_id, sku_code])
 }
 
 model Invoice {
-  id             String        @id @default(uuid())
-  invoice_number String        @unique
+  id        String @id @default(uuid())
+  tenant_id String
+  tenant    Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  invoice_number String
   customer_id    String
-  customer       Customer      @relation(fields: [customer_id], references: [id])
+  customer       Customer      @relation(fields: [customer_id], references: [id], onDelete: Restrict)
   total_amount   Float
   total_gst      Float         @default(0)
   status         InvoiceStatus @default(CREDIT)
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
-  items          InvoiceItem[]
+
+  items InvoiceItem[]
+
+  // Invoice numbers must be unique within a tenant
+  @@unique([tenant_id, invoice_number])
 }
 
 model InvoiceItem {
-  id             String   @id @default(uuid())
-  invoice_id     String
-  invoice        Invoice  @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
-  product_id     String
-  product        Product  @relation(fields: [product_id], references: [id], onDelete: Restrict)
+  id String @id @default(uuid())
+
+  invoice_id String
+  invoice    Invoice @relation(fields: [invoice_id], references: [id], onDelete: Cascade)
+  product_id String
+  product    Product @relation(fields: [product_id], references: [id], onDelete: Restrict)
+
   quantity       Float
   price_per_unit Float
   gst_amount     Float    @default(0)
   total          Float
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
+  // No direct Tenant relationship needed as it's fully owned by the Invoice, which is tenant-scoped
 }
 
 model PurchaseBill {
-  id           String         @id @default(uuid())
-  bill_number  String         @unique
+  id        String @id @default(uuid())
+  tenant_id String
+  tenant    Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
+  bill_number  String
   supplier_id  String
-  supplier     Supplier       @relation(fields: [supplier_id], references: [id])
+  supplier     Supplier       @relation(fields: [supplier_id], references: [id], onDelete: Restrict)
   total_amount Float
   total_gst    Float          @default(0)
   status       PurchaseStatus @default(DUE)
   due_date     DateTime?
   createdAt    DateTime       @default(now())
   updatedAt    DateTime       @updatedAt
-  items        PurchaseItem[]
+
+  items PurchaseItem[]
+
+  // Supplier Bill Numbers are unique within a tenant
+  @@unique([tenant_id, bill_number])
 }
 
 model PurchaseItem {
-  id                      String       @id @default(uuid())
-  purchase_id             String
-  purchase                PurchaseBill @relation(fields: [purchase_id], references: [id], onDelete: Cascade)
-  product_id              String
-  product                 Product      @relation(fields: [product_id], references: [id], onDelete: Restrict)
+  id String @id @default(uuid())
+
+  purchase_id String
+  purchase    PurchaseBill @relation(fields: [purchase_id], references: [id], onDelete: Cascade)
+  product_id  String
+  product     Product      @relation(fields: [product_id], references: [id], onDelete: Restrict)
+
   quantity                Float
   purchase_price_per_unit Float
-  gst_amount              Float        @default(0)
+  gst_amount              Float    @default(0)
   total                   Float
-  createdAt               DateTime     @default(now())
-  updatedAt               DateTime     @updatedAt
+  createdAt               DateTime @default(now())
+  updatedAt               DateTime @updatedAt
+  // Owned by PurchaseBill
 }
 
 model Transaction {
-  id               String          @id @default(uuid())
+  id        String @id @default(uuid())
+  tenant_id String
+  tenant    Tenant @relation(fields: [tenant_id], references: [id], onDelete: Cascade)
+
   type             TransactionType
   amount           Float
-  reference_id     String?         // Could be customer_id, supplier_id, or null for general expense
-  expense_category String?         // transport, rent, electricity, labor, misc
+  reference_id     String? // Could be customer_id, supplier_id, or null
+  expense_category String? // transport, rent, electricity, labor, misc
   date             DateTime        @default(now())
   description      String?         @db.Text
   createdAt        DateTime        @default(now())
   updatedAt        DateTime        @updatedAt
+
+  @@index([tenant_id])
 }

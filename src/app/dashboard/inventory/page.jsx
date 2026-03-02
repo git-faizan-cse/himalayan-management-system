@@ -41,17 +41,27 @@ export default function InventoryPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [roleRes, prodRes, catRes] = await Promise.all([
-        fetch("/api/auth/me").then(r => r.json()),
-        fetch("/api/products").then(r => r.json()),
-        fetch("/api/categories").then(r => r.json())
+      const [roleReq, prodReq, catReq] = await Promise.all([
+        fetch("/api/auth/me"),
+        fetch("/api/products"),
+        fetch("/api/categories")
       ]);
+
+      if (roleReq.status === 401 || prodReq.status === 401 || catReq.status === 401) {
+        window.location.href = "/login";
+        return;
+      }
+
+      const roleRes = await roleReq.json();
+      const prodRes = await prodReq.json();
+      const catRes = await catReq.json();
+
       setUserRole(roleRes.role);
-      setProducts(prodRes);
-      setCategories(catRes);
+      setProducts(Array.isArray(prodRes) ? prodRes : []);
+      setCategories(Array.isArray(catRes) ? catRes : []);
       
       // Select first category by default if adding new
-      if (!editingId && catRes.length > 0 && !formData.category_id) {
+      if (!editingId && Array.isArray(catRes) && catRes.length > 0 && !formData.category_id) {
         setFormData(prev => ({ ...prev, category_id: catRes[0].id }));
       }
     } catch (error) {

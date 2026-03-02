@@ -3,9 +3,9 @@ import { SignJWT, jwtVerify } from 'jose';
 const secretKey = process.env.JWT_SECRET || 'super-secret-himalaya-key-change-me';
 const encodedKey = new TextEncoder().encode(secretKey);
 
-export async function createSession(userId, role) {
+export async function createSession(userId, role, tenantId) {
   const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // 7 days
-  const session = await new SignJWT({ userId, role })
+  const session = await new SignJWT({ userId, role, tenantId })
     .setProtectedHeader({ alg: 'HS256' })
     .setIssuedAt()
     .setExpirationTime('7d')

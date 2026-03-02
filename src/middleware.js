@@ -21,7 +21,7 @@ export async function middleware(req) {
 
     const payload = await verifySession(sessionCookie);
 
-    if (!payload || !payload.userId) {
+    if (!payload || !payload.userId || !payload.tenantId) {
       if (isApiRoute) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       } else {
@@ -37,12 +37,28 @@ export async function middleware(req) {
     // RBAC logic for API and UI routes
     // ---------------------------------
     
-    // 1. ADMIN Only Routes (Users)
+    // 1. ADMIN / SUPER_ADMIN Only Routes (Users)
     const isUserMgtRoute = pathname.startsWith('/api/users') || pathname.startsWith('/dashboard/users');
-    if (isUserMgtRoute && role !== 'ADMIN') {
+    if (isUserMgtRoute && (role !== 'ADMIN' && role !== 'SUPER_ADMIN')) {
       return isApiRoute 
         ? NextResponse.json({ error: 'Forbidden: Admins Only' }, { status: 403 })
         : NextResponse.redirect(new URL('/dashboard/sales', req.url)); // Safe fallback route
+    }
+
+    // 1b. SUPER_ADMIN Strict Routing
+    const isSuperAdminRoute = pathname.startsWith('/api/super-admin') || pathname.startsWith('/dashboard/super-admin');
+    
+    if (isSuperAdminRoute && role !== 'SUPER_ADMIN') {
+      return isApiRoute 
+        ? NextResponse.json({ error: 'Forbidden: Platform Admins Only' }, { status: 403 })
+        : NextResponse.redirect(new URL('/dashboard', req.url));
+    }
+
+    if (role === 'SUPER_ADMIN' && !isSuperAdminRoute && !isUserMgtRoute && (isDashboardRoute || isApiRoute)) {
+      // Super Admins should not access shop operations like sales, inventory, etc.
+      return isApiRoute
+        ? NextResponse.json({ error: 'Super Admins do not have operational access' }, { status: 403 })
+        : NextResponse.redirect(new URL('/dashboard/super-admin', req.url));
     }
 
     // 2. STAFF Restrictions (No Reports, No Dashboard Financials)

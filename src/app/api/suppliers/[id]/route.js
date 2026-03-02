@@ -7,12 +7,25 @@ export async function PUT(req, { params }) {
     const sessionCookie = req.cookies.get('himalaya_session')?.value;
     const payload = await verifySession(sessionCookie);
 
-    if (!payload?.role || (payload.role !== 'ADMIN' && payload.role !== 'MANAGER')) {
+    if (!payload?.tenantId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!payload?.role || (payload.role !== 'SUPER_ADMIN' && payload.role !== 'ADMIN' && payload.role !== 'MANAGER')) {
       return NextResponse.json({ error: 'Forbidden: Only Admins and Managers can edit suppliers' }, { status: 403 });
     }
 
     const { id } = await params;
     const data = await req.json();
+
+    // Verify ownership
+    const existing = await prisma.supplier.findUnique({
+      where: { id, tenant_id: payload.tenantId }
+    });
+
+    if (!existing) {
+       return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
+    }
 
     const updatedSupplier = await prisma.supplier.update({
       where: { id },
@@ -35,11 +48,25 @@ export async function DELETE(req, { params }) {
     const sessionCookie = req.cookies.get('himalaya_session')?.value;
     const payload = await verifySession(sessionCookie);
 
-    if (!payload?.role || (payload.role !== 'ADMIN' && payload.role !== 'MANAGER')) {
+    if (!payload?.tenantId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!payload?.role || (payload.role !== 'SUPER_ADMIN' && payload.role !== 'ADMIN' && payload.role !== 'MANAGER')) {
       return NextResponse.json({ error: 'Forbidden: Only Admins and Managers can delete suppliers' }, { status: 403 });
     }
 
     const { id } = await params;
+
+    // Verify ownership
+    const existing = await prisma.supplier.findUnique({
+      where: { id, tenant_id: payload.tenantId }
+    });
+
+    if (!existing) {
+       return NextResponse.json({ error: 'Supplier not found' }, { status: 404 });
+    }
+
     await prisma.supplier.delete({ where: { id } });
     return NextResponse.json({ success: true });
   } catch (error) {

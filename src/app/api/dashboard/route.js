@@ -1,8 +1,18 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
+import { verifySession } from '@/lib/auth';
 
-export async function GET() {
+export async function GET(req) {
   try {
+    const sessionCookie = req.cookies.get('himalaya_session')?.value;
+    const payload = await verifySession(sessionCookie);
+
+    if (!payload?.tenantId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const tenantId = payload.tenantId;
+
     const now = new Date();
     const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
     const startOfToday = new Date(now.getFullYear(), now.getMonth(), now.getDate());
@@ -21,23 +31,25 @@ export async function GET() {
       topProducts,
       recentInvoices,
     ] = await Promise.all([
-      prisma.invoice.aggregate({ _sum: { total_amount: true }, where: { createdAt: { gte: startOfToday } } }),
-      prisma.invoice.aggregate({ _sum: { total_amount: true, total_gst: true }, where: { createdAt: { gte: startOfMonth } } }),
-      prisma.invoice.aggregate({ _sum: { total_amount: true } }),
-      prisma.purchaseBill.aggregate({ _sum: { total_amount: true }, where: { createdAt: { gte: startOfToday } } }),
-      prisma.purchaseBill.aggregate({ _sum: { total_amount: true }, where: { createdAt: { gte: startOfMonth } } }),
-      prisma.purchaseBill.aggregate({ _sum: { total_amount: true } }),
-      prisma.customer.aggregate({ _sum: { outstanding_amount: true } }),
-      prisma.supplier.aggregate({ _sum: { total_payables: true } }),
-      prisma.transaction.aggregate({ _sum: { amount: true }, where: { type: 'EXPENSE', date: { gte: startOfMonth } } }),
-      prisma.product.findMany({ select: { id: true, name: true, current_stock: true, min_stock_alert: true, category: true, selling_price: true } }),
+      prisma.invoice.aggregate({ _sum: { total_amount: true }, where: { tenant_id: tenantId, createdAt: { gte: startOfToday } } }),
+      prisma.invoice.aggregate({ _sum: { total_amount: true, total_gst: true }, where: { tenant_id: tenantId, createdAt: { gte: startOfMonth } } }),
+      prisma.invoice.aggregate({ _sum: { total_amount: true }, where: { tenant_id: tenantId } }),
+      prisma.purchaseBill.aggregate({ _sum: { total_amount: true }, where: { tenant_id: tenantId, createdAt: { gte: startOfToday } } }),
+      prisma.purchaseBill.aggregate({ _sum: { total_amount: true }, where: { tenant_id: tenantId, createdAt: { gte: startOfMonth } } }),
+      prisma.purchaseBill.aggregate({ _sum: { total_amount: true }, where: { tenant_id: tenantId } }),
+      prisma.customer.aggregate({ _sum: { outstanding_amount: true }, where: { tenant_id: tenantId } }),
+      prisma.supplier.aggregate({ _sum: { total_payables: true }, where: { tenant_id: tenantId } }),
+      prisma.transaction.aggregate({ _sum: { amount: true }, where: { tenant_id: tenantId, type: 'EXPENSE', date: { gte: startOfMonth } } }),
+      prisma.product.findMany({ where: { tenant_id: tenantId }, select: { id: true, name: true, current_stock: true, min_stock_alert: true, category: true, selling_price: true } }),
       prisma.invoiceItem.groupBy({
         by: ['product_id'],
         _sum: { quantity: true, total: true },
+        where: { invoice: { tenant_id: tenantId } },
         orderBy: { _sum: { total: 'desc' } },
         take: 5,
       }),
       prisma.invoice.findMany({
+        where: { tenant_id: tenantId },
         take: 5,
         orderBy: { createdAt: 'desc' },
         include: { customer: { select: { name: true } } }

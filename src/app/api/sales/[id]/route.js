@@ -4,9 +4,16 @@ import { verifySession } from '@/lib/auth';
 
 export async function GET(req, { params }) {
   try {
+    const sessionCookie = req.cookies.get('himalaya_session')?.value;
+    const payload = await verifySession(sessionCookie);
+
+    if (!payload?.tenantId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     const { id } = await params;
-    const invoice = await prisma.invoice.findUnique({
-      where: { id },
+    const invoice = await prisma.invoice.findFirst({
+      where: { id, tenant_id: payload.tenantId },
       include: {
         customer: true,
         items: {
@@ -27,8 +34,12 @@ export async function PUT(req, { params }) {
     const sessionCookie = req.cookies.get('himalaya_session')?.value;
     const payload = await verifySession(sessionCookie);
 
+    if (!payload?.tenantId) {
+       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     // ONLY ADMIN CAN EDIT FINALIZED INVOICES
-    if (payload?.role !== 'ADMIN') {
+    if (payload?.role !== 'SUPER_ADMIN' && payload?.role !== 'ADMIN') {
       return NextResponse.json({ error: 'Forbidden: Only Admins can edit invoices' }, { status: 403 });
     }
 
@@ -40,10 +51,20 @@ export async function PUT(req, { params }) {
       return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
     }
 
+    // Verify Customer ownership
+    const customer = await prisma.customer.findFirst({
+      where: { id: customer_id, tenant_id: payload.tenantId },
+      select: { id: true }
+    });
+
+    if (!customer) {
+      return NextResponse.json({ error: `Customer not found or unauthorized.` }, { status: 400 });
+    }
+
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Fetch old invoice details
-      const oldInvoice = await tx.invoice.findUnique({
-        where: { id },
+      // 1. Fetch old invoice details verifying tenant
+      const oldInvoice = await tx.invoice.findFirst({
+        where: { id, tenant_id: payload.tenantId },
         include: { items: true }
       });
 
@@ -70,9 +91,9 @@ export async function PUT(req, { params }) {
 
       // 4. Apply New Stock Deductions (and Validate)
       for (const newItem of items) {
-        const product = await tx.product.findUnique({ where: { id: newItem.product_id } });
+        const product = await tx.product.findFirst({ where: { id: newItem.product_id, tenant_id: payload.tenantId } });
         if (!product || product.current_stock < newItem.quantity) {
-          throw new Error(`Insufficient stock for product: ${product?.name || newItem.product_id}`);
+          throw new Error(`Insufficient stock or unauthorized for product: ${product?.name || newItem.product_id}`);
         }
 
         await tx.product.update({
@@ -133,12 +154,16 @@ export async function PATCH(req, { params }) {
     const sessionCookie = req.cookies.get('himalaya_session')?.value;
     const payload = await verifySession(sessionCookie);
 
-    if (!payload?.role) {
+    if (!payload?.tenantId) {
+       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    if (!payload?.role || payload.role === 'STAFF') {
       return NextResponse.json({ error: 'Forbidden: Unauthorized' }, { status: 403 });
     }
 
     const { id } = await params;
-    const invoice = await prisma.invoice.findUnique({ where: { id } });
+    const invoice = await prisma.invoice.findFirst({ where: { id, tenant_id: payload.tenantId } });
     if (!invoice) return NextResponse.json({ error: 'Invoice not found' }, { status: 404 });
 
     const updated = await prisma.$transaction(async (tx) => {
@@ -157,6 +182,7 @@ export async function PATCH(req, { params }) {
         // Log as incoming payment
         await tx.transaction.create({
           data: {
+            tenant_id: payload.tenantId,
             type: 'PAYMENT_IN',
             amount: invoice.total_amount,
             reference_id: invoice.customer_id,

@@ -6,9 +6,15 @@ export async function GET(req) {
   try {
     const sessionCookie = req.cookies.get('himalaya_session')?.value;
     const payload = await verifySession(sessionCookie);
-    const isAdminOrManager = payload?.role === 'ADMIN' || payload?.role === 'MANAGER';
+    
+    if (!payload?.tenantId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    
+    const isAdminOrManager = payload?.role === 'SUPER_ADMIN' || payload?.role === 'ADMIN' || payload?.role === 'MANAGER';
 
     const products = await prisma.product.findMany({
+      where: { tenant_id: payload.tenantId },
       include: {
         category: true,
         supplier: {
@@ -35,15 +41,20 @@ export async function POST(req) {
   try {
     const sessionCookie = req.cookies.get('himalaya_session')?.value;
     const payload = await verifySession(sessionCookie);
+
+    if (!payload?.tenantId) {
+       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
     if (!payload?.role || payload.role === 'STAFF') {
       return NextResponse.json({ error: 'Forbidden: Staff cannot create products' }, { status: 403 });
     }
 
     const data = await req.json();
-    require('fs').writeFileSync('tmp/payload_dump.json', JSON.stringify(data));
 
     const newProduct = await prisma.product.create({
       data: {
+        tenant_id: payload.tenantId,
         name: data.name,
         category_id: data.category_id,
         brand: data.brand || null,

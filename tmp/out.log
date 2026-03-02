@@ -1,0 +1,11 @@
+--- Testing API Isolation ---
+Login Set-Cookie header: himalaya_session=eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOiJjNzEzZmIzZi02NDdkLTQ4NWUtODYxZS0yNzBlMDBlZDg0YjYiLCJyb2xlIjoiQURNSU4iLCJ0ZW5hbnRJZCI6IjI5MzYxZThkLTI5YTctNGYxZC1iOTkyLWE4MDFmNzE2ZDE0MiIsImlhdCI6MTc3MjQ2OTUwMCwiZXhwIjoxNzczMDc0MzAwfQ.dwfynUeCRxy63EmLeMLAgjreJHIxo8tGuLMjLwOlLwg; Path=/; Expires=Mon, 09 Mar 2026 16:38:20 GMT; HttpOnly; SameSite=lax
+[Himalayan Login] 200 himalaya_session=eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOiJjNzEzZmIzZi02NDdkLTQ4NWUtODYxZS0yNzBlMDBlZDg0YjYiLCJyb2xlIjoiQURNSU4iLCJ0ZW5hbnRJZCI6IjI5MzYxZThkLTI5YTctNGYxZC1iOTkyLWE4MDFmNzE2ZDE0MiIsImlhdCI6MTc3MjQ2OTUwMCwiZXhwIjoxNzczMDc0MzAwfQ.dwfynUeCRxy63EmLeMLAgjreJHIxo8tGuLMjLwOlLwg
+Login Set-Cookie header: himalaya_session=eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOiI4ZmNkNzI4Ni0zMDIzLTQ1NGItYjMyMy03NzRmYjQ5YzYxODQiLCJyb2xlIjoiQURNSU4iLCJ0ZW5hbnRJZCI6ImI5ZDk3MTk4LTcyMTAtNGE1NS04N2I5LTE0MmM1NWM5ZTI5OCIsImlhdCI6MTc3MjQ2OTUwMCwiZXhwIjoxNzczMDc0MzAwfQ.YfkP5DDQNghJxWoG5r-VxKQv1MelFN8mPEpQjh3SY2c; Path=/; Expires=Mon, 09 Mar 2026 16:38:20 GMT; HttpOnly; SameSite=lax
+[Global Login] 200 himalaya_session=eyJhbGciOiJIUzI1NiJ9.eyJ1c2VySWQiOiI4ZmNkNzI4Ni0zMDIzLTQ1NGItYjMyMy03NzRmYjQ5YzYxODQiLCJyb2xlIjoiQURNSU4iLCJ0ZW5hbnRJZCI6ImI5ZDk3MTk4LTcyMTAtNGE1NS04N2I5LTE0MmM1NWM5ZTI5OCIsImlhdCI6MTc3MjQ2OTUwMCwiZXhwIjoxNzczMDc0MzAwfQ.YfkP5DDQNghJxWoG5r-VxKQv1MelFN8mPEpQjh3SY2c
+- Himalayan Products: 200 | Count: 0
+- Global Products: 200 | Count: 0
+- Himalayan Dashboard Status: 200
+- Global Dashboard Status: 200
+- Himalayan Sales Status: 200 | Count: 0
+--- Isolation Tests Completed ---
