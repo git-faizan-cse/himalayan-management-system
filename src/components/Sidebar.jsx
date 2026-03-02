@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Mountain, LayoutDashboard, Package, ShoppingCart, Users, Truck, Receipt, Settings, LogOut, FileSpreadsheet, Shield } from "lucide-react";
+import { Mountain, LayoutDashboard, Package, ShoppingCart, Users, Truck, Receipt, Settings, LogOut, FileSpreadsheet, Shield, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";

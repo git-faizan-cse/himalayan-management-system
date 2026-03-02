@@ -3,12 +3,12 @@ import { prisma } from '@/lib/prisma';
 import bcrypt from 'bcryptjs';
 import { verifySession } from '@/lib/auth';
 
-// Helper to check if requester is ADMIN
+// Helper to check if requester is ADMIN or SUPER_ADMIN and explicitly return tenant_id
 async function requireAdmin(req) {
   const sessionCookie = req.cookies.get('himalaya_session')?.value;
   if (!sessionCookie) return null;
   const payload = await verifySession(sessionCookie);
-  if (!payload || payload.role !== 'ADMIN') return null;
+  if (!payload || !['ADMIN', 'SUPER_ADMIN'].includes(payload.role)) return null;
   return payload;
 }
 
@@ -17,7 +17,12 @@ export async function GET(req) {
     const admin = await requireAdmin(req);
     if (!admin) return NextResponse.json({ error: 'Unauthorized. Admin access required.' }, { status: 403 });
 
+    // Note for Super Admins: the super admin dashboard has a different route.
+    // This route is purely for the tenant to see their own users.
+    const query = admin.role === 'SUPER_ADMIN' ? {} : { tenant_id: admin.tenantId };
+
     const users = await prisma.user.findMany({
+      where: query,
       select: {
         id: true,
         name: true,
@@ -39,6 +44,7 @@ export async function POST(req) {
   try {
     const admin = await requireAdmin(req);
     if (!admin) return NextResponse.json({ error: 'Unauthorized. Admin access required.' }, { status: 403 });
+    if (admin.role === 'SUPER_ADMIN') return NextResponse.json({ error: 'Super Admin cannot create shop users.' }, { status: 403 });
 
     const data = await req.json();
     
@@ -52,7 +58,9 @@ export async function POST(req) {
 
     const newUser = await prisma.user.create({
       data: {
+        tenant_id: admin.tenantId, // Force strict data isolation
         name: data.name,
+        username: data.email, // Auto-fill globally unique username using email
         email: data.email,
         password_hash: hashedPassword,
         role: data.role || 'STAFF',
