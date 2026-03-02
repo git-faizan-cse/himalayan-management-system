@@ -20,10 +20,21 @@ export async function POST(req) {
           { username: identifier }
         ]
       },
+      include: {
+        tenant: true
+      }
     });
 
     if (!user) {
       return NextResponse.json({ error: 'Invalid credentials' }, { status: 401 });
+    }
+
+    if (user.tenant?.subscription === 'PENDING') {
+      return NextResponse.json({ error: 'Your account is pending approval by the platform administrator.' }, { status: 403 });
+    }
+
+    if (user.tenant?.subscription === 'SUSPENDED') {
+      return NextResponse.json({ error: 'Your account has been suspended. Please contact support.' }, { status: 403 });
     }
 
     const isValidPassword = await bcrypt.compare(password, user.password_hash);

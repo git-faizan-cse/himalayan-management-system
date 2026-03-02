@@ -1,65 +1,111 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import Link from 'next/link';
+import { Button } from '@/components/ui/button';
+import { Mountain, CheckCircle2, ArrowRight, ShieldCheck, Zap, BarChart3 } from 'lucide-react';
+
+export default function LandingPage() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.js file.
-          </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
-          </p>
-        </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
-        </div>
+    <div className="flex flex-col min-h-screen">
+      {/* Navbar */}
+      <header className="px-6 lg:px-14 h-16 flex items-center border-b bg-white/80 backdrop-blur-md sticky top-0 z-50">
+        <Link className="flex items-center justify-center gap-2" href="#">
+          <Mountain className="h-6 w-6 text-blue-600" />
+          <span className="font-bold text-xl tracking-tight text-blue-900">Himalayan SaaS</span>
+        </Link>
+        <nav className="ml-auto flex gap-4 sm:gap-6 items-center">
+          <Link className="text-sm font-medium hover:underline underline-offset-4 text-zinc-600 hover:text-blue-600" href="#features">
+            Features
+          </Link>
+          <Link className="text-sm font-medium hover:underline underline-offset-4 text-zinc-600 hover:text-blue-600" href="/login">
+            Sign In
+          </Link>
+          <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700">
+            <Link href="/register">Get Started</Link>
+          </Button>
+        </nav>
+      </header>
+
+      <main className="flex-1">
+        {/* Hero Section */}
+        <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-dot-pattern">
+          <div className="container px-4 md:px-6 mx-auto">
+            <div className="flex flex-col items-center space-y-8 text-center">
+              <div className="space-y-4 max-w-3xl">
+                <h1 className="text-4xl font-extrabold tracking-tighter sm:text-5xl md:text-6xl lg:text-7xl text-zinc-900">
+                  Manage your entire business on <span className="text-blue-600">autopilot.</span>
+                </h1>
+                <p className="mx-auto max-w-[700px] text-zinc-500 md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed dark:text-zinc-400">
+                  The all-in-one ERP and CRM platform for modern businesses. Invoicing, inventory, purchasing, and reporting — unified.
+                </p>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-4">
+                <Button asChild size="lg" className="h-12 px-8 bg-blue-600 hover:bg-blue-700 text-lg">
+                  <Link href="/register">
+                    Open Your Free Account <ArrowRight className="ml-2 h-5 w-5" />
+                  </Link>
+                </Button>
+                <Button asChild variant="outline" size="lg" className="h-12 px-8 text-lg">
+                  <Link href="/login">Login to Dashboard</Link>
+                </Button>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {/* Features Section */}
+        <section id="features" className="w-full py-12 md:py-24 lg:py-32 bg-zinc-50 border-t">
+          <div className="container px-4 md:px-6 mx-auto">
+            <div className="flex flex-col items-center justify-center space-y-4 text-center mb-12">
+              <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl text-zinc-900">Everything you need to scale</h2>
+              <p className="max-w-[900px] text-zinc-500 md:text-xl/relaxed">
+                A seamless toolkit designed to prevent losses, track growth, and streamline operations.
+              </p>
+            </div>
+            <div className="mx-auto grid max-w-5xl items-center gap-6 py-12 lg:grid-cols-3 md:gap-10">
+              {/* Feature 1 */}
+              <div className="flex flex-col items-center space-y-4 text-center p-6 bg-white rounded-2xl shadow-sm border border-zinc-100 h-full">
+                <div className="p-4 bg-blue-100 rounded-full">
+                  <Zap className="h-8 w-8 text-blue-600" />
+                </div>
+                <h3 className="text-xl font-bold">Fast Invoicing</h3>
+                <p className="text-zinc-500">Create GST-compliant invoices in seconds. Track paid and pending balances automatically.</p>
+              </div>
+              {/* Feature 2 */}
+              <div className="flex flex-col items-center space-y-4 text-center p-6 bg-white rounded-2xl shadow-sm border border-zinc-100 h-full">
+                <div className="p-4 bg-green-100 rounded-full">
+                  <ShieldCheck className="h-8 w-8 text-green-600" />
+                </div>
+                <h3 className="text-xl font-bold">Inventory Control</h3>
+                <p className="text-zinc-500">Never run out of stock. Secure multi-location tracking and real-time valuation metrics.</p>
+              </div>
+              {/* Feature 3 */}
+              <div className="flex flex-col items-center space-y-4 text-center p-6 bg-white rounded-2xl shadow-sm border border-zinc-100 h-full">
+                <div className="p-4 bg-purple-100 rounded-full">
+                  <BarChart3 className="h-8 w-8 text-purple-600" />
+                </div>
+                <h3 className="text-xl font-bold">Profit Reporting</h3>
+                <p className="text-zinc-500">Instant financial insights. Track income vs expenses and generate beautiful accountant-ready reports.</p>
+              </div>
+            </div>
+          </div>
+        </section>
       </main>
+
+      {/* Footer */}
+      <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t bg-white">
+        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+          © 2026 Himalayan SaaS Platform. All rights reserved.
+        </p>
+        <nav className="sm:ml-auto flex gap-4 sm:gap-6">
+          <Link className="text-xs hover:underline underline-offset-4 text-zinc-500" href="#">
+            Terms of Service
+          </Link>
+          <Link className="text-xs hover:underline underline-offset-4 text-zinc-500" href="#">
+            Privacy
+          </Link>
+        </nav>
+      </footer>
     </div>
   );
 }

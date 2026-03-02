@@ -38,7 +38,7 @@ model Tenant {
   id           String   @id @default(uuid())
   company_name String
   domain       String?  @unique // Optional: for custom domains/subdomains later
-  subscription String   @default("ACTIVE") // ACTIVE, SUSPENDED, TRIAL
+  subscription String   @default("PENDING") // ACTIVE, SUSPENDED, PENDING
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 

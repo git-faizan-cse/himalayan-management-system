@@ -31,7 +31,7 @@ export async function POST(req) {
       const tenant = await tx.tenant.create({
         data: {
           company_name: businessName,
-          subscription: 'ACTIVE',
+          subscription: 'PENDING',
         }
       });
 
