@@ -23,6 +23,17 @@ async function main() {
   } else {
     console.log('Seed: Admin already exists');
   }
+
+  // Seed default categories
+  const defaults = ["PVC", "CEMENT", "IRON", "WOOD"];
+  for (const name of defaults) {
+    await prisma.category.upsert({
+      where: { name },
+      update: {},
+      create: { name }
+    });
+  }
+  console.log('Seed: Default categories ensured.');
 }
 
 main()

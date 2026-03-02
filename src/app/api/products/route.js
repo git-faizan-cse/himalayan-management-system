@@ -10,6 +10,7 @@ export async function GET(req) {
 
     const products = await prisma.product.findMany({
       include: {
+        category: true,
         supplier: {
           select: { name: true }
         }
@@ -39,11 +40,12 @@ export async function POST(req) {
     }
 
     const data = await req.json();
+    require('fs').writeFileSync('tmp/payload_dump.json', JSON.stringify(data));
 
     const newProduct = await prisma.product.create({
       data: {
         name: data.name,
-        category: data.category,
+        category_id: data.category_id,
         brand: data.brand || null,
         sku_code: data.sku_code || null,
         unit: data.unit,
@@ -59,6 +61,6 @@ export async function POST(req) {
     return NextResponse.json(newProduct, { status: 201 });
   } catch (error) {
     console.error('Create product error:', error);
-    return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
+    return NextResponse.json({ error: `Failed to create product: ${error.message}` }, { status: 500 });
   }
 }

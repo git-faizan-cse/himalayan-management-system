@@ -27,7 +27,7 @@ export async function PUT(req, { params }) {
       where: { id },
       data: {
         name: data.name,
-        category: data.category,
+        category_id: data.category_id,
         brand: data.brand || null,
         sku_code: data.sku_code || null,
         unit: data.unit,

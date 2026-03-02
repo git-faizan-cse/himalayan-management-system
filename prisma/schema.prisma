@@ -14,12 +14,6 @@ enum Role {
   STAFF
 }
 
-enum ProductCategory {
-  PVC
-  CEMENT
-  IRON
-  WOOD
-}
 
 enum InvoiceStatus {
   PAID
@@ -73,12 +67,22 @@ model Customer {
   invoices           Invoice[]
 }
 
+model Category {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String?   @db.Text
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  products    Product[]
+}
+
 model Product {
   id              String          @id @default(uuid())
   name            String
-  category        ProductCategory
+  category_id     String
+  category        Category        @relation(fields: [category_id], references: [id])
   brand           String?
-  sku_code        String?         @unique
+  sku_code        String?
   unit            String          // sq ft, bag, kg, piece
   purchase_price  Float
   selling_price   Float
@@ -91,6 +95,8 @@ model Product {
   updatedAt       DateTime        @updatedAt
   invoiceItems    InvoiceItem[]
   purchaseItems   PurchaseItem[]
+
+  @@unique([category_id, sku_code])
 }
 
 model Invoice {

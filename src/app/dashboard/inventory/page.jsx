@@ -26,6 +26,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function InventoryPage() {
   const [products, setProducts] = useState([]);
+  const [categories, setCategories] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [open, setOpen] = useState(false);
@@ -33,19 +34,26 @@ export default function InventoryPage() {
   const [userRole, setUserRole] = useState(null);
 
   const [formData, setFormData] = useState({
-    name: "", category: "PVC", brand: "", sku_code: "", unit: "piece",
+    name: "", category_id: "", brand: "", sku_code: "", unit: "piece",
     purchase_price: 0, selling_price: 0, gst_percent: 18, current_stock: 0, min_stock_alert: 10
   });
 
   const fetchData = async () => {
     setLoading(true);
     try {
-      const [roleRes, prodRes] = await Promise.all([
+      const [roleRes, prodRes, catRes] = await Promise.all([
         fetch("/api/auth/me").then(r => r.json()),
-        fetch("/api/products").then(r => r.json())
+        fetch("/api/products").then(r => r.json()),
+        fetch("/api/categories").then(r => r.json())
       ]);
       setUserRole(roleRes.role);
       setProducts(prodRes);
+      setCategories(catRes);
+      
+      // Select first category by default if adding new
+      if (!editingId && catRes.length > 0 && !formData.category_id) {
+        setFormData(prev => ({ ...prev, category_id: catRes[0].id }));
+      }
     } catch (error) {
       console.error("Failed to load inventory data");
     } finally {
@@ -68,7 +76,7 @@ export default function InventoryPage() {
   const openAddModal = () => {
     setEditingId(null);
     setFormData({
-      name: "", category: "PVC", brand: "", sku_code: "", unit: "piece",
+      name: "", category_id: categories.length > 0 ? categories[0].id : "", brand: "", sku_code: "", unit: "piece",
       purchase_price: 0, selling_price: 0, gst_percent: 18, current_stock: 0, min_stock_alert: 10
     });
     setOpen(true);
@@ -76,11 +84,32 @@ export default function InventoryPage() {
 
   const openEditModal = (p) => {
     setEditingId(p.id);
-    setFormData({ ...p });
+    setFormData({ ...p, category_id: p.category_id });
     setOpen(true);
   };
 
+  const getSkuWarning = () => {
+    if (!formData.sku_code) return null;
+    const dupes = products.filter(p => p.sku_code && p.sku_code.toLowerCase() === formData.sku_code.toLowerCase() && p.id !== editingId);
+    if (dupes.length === 0) return null;
+
+    const sameCat = dupes.find(p => p.category_id === formData.category_id);
+    if (sameCat) {
+      return { type: 'error', message: `Code already used by "${sameCat.name}" in this category.` };
+    }
+    
+    const otherCats = [...new Set(dupes.map(p => p.category?.name || "Uncategorized"))].join(", ");
+    return { type: 'warning', message: `Used in other categories: ${otherCats}` };
+  };
+
+  const skuStatus = getSkuWarning();
+
   const saveProduct = async () => {
+    if (skuStatus?.type === 'error') {
+      alert("Cannot save: SKU code already exists in this category.");
+      return;
+    }
+
     const method = editingId ? "PUT" : "POST";
     const url = editingId ? `/api/products/${editingId}` : "/api/products";
 
@@ -115,7 +144,7 @@ export default function InventoryPage() {
   const filteredProducts = products.filter(p =>
     p.name.toLowerCase().includes(search.toLowerCase()) || 
     (p.sku_code || "").toLowerCase().includes(search.toLowerCase()) ||
-    p.category.toLowerCase().includes(search.toLowerCase())
+    (p.category?.name || "").toLowerCase().includes(search.toLowerCase())
   );
 
   const totalInventoryValue = products.reduce((sum, p) => sum + (p.current_stock * p.selling_price), 0);
@@ -159,14 +188,13 @@ export default function InventoryPage() {
               <Input id="name" name="name" value={formData.name} onChange={handleChange} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="category">Category *</Label>
-              <Select value={formData.category} onValueChange={(val) => handleSelectChange('category', val)}>
+              <Label htmlFor="category_id">Category *</Label>
+              <Select value={formData.category_id} onValueChange={(val) => handleSelectChange('category_id', val)}>
                 <SelectTrigger><SelectValue placeholder="Select Category" /></SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="PVC">PVC</SelectItem>
-                  <SelectItem value="CEMENT">Cement</SelectItem>
-                  <SelectItem value="IRON">Iron</SelectItem>
-                  <SelectItem value="WOOD">Wood</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>{cat.name}</SelectItem>
+                  ))}
                 </SelectContent>
               </Select>
             </div>
@@ -175,8 +203,19 @@ export default function InventoryPage() {
               <Input id="brand" name="brand" value={formData.brand} onChange={handleChange} />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="sku_code">SKU Code</Label>
-              <Input id="sku_code" name="sku_code" value={formData.sku_code} onChange={handleChange} />
+              <Label htmlFor="sku_code" className={skuStatus?.type === 'error' ? 'text-red-600' : ''}>SKU Code</Label>
+              <Input 
+                id="sku_code" 
+                name="sku_code" 
+                value={formData.sku_code} 
+                onChange={handleChange} 
+                className={skuStatus?.type === 'error' ? 'border-red-500 focus-visible:ring-red-500' : skuStatus?.type === 'warning' ? 'border-amber-500 focus-visible:ring-amber-500' : ''} 
+              />
+              {skuStatus && (
+                <p className={`text-[11px] font-medium leading-tight ${skuStatus.type === 'error' ? 'text-red-600' : 'text-amber-600'}`}>
+                  {skuStatus.type === 'warning' ? '⚠️ ' : '❌ '}{skuStatus.message}
+                </p>
+              )}
             </div>
             <div className="space-y-2">
               <Label htmlFor="unit">Unit Measure *</Label>
@@ -258,7 +297,7 @@ export default function InventoryPage() {
                           <div className="font-semibold">{p.name}</div>
                           <div className="text-xs text-zinc-500">{p.brand || 'No Brand'} • {p.unit}</div>
                         </TableCell>
-                        <TableCell>{p.category}</TableCell>
+                        <TableCell>{p.category?.name || 'Uncategorized'}</TableCell>
                         <TableCell>
                           <div className={`font-medium ${p.current_stock <= p.min_stock_alert ? 'text-red-500' : 'text-green-600'}`}>
                             {p.current_stock}

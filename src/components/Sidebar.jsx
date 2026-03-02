@@ -32,6 +32,9 @@ export function Sidebar() {
         <div className="grid gap-1 px-2">
           {userRole !== 'STAFF' && <SidebarItem href="/dashboard" icon={<LayoutDashboard className="h-4 w-4" />} label="Dashboard" />}
           <SidebarItem href="/dashboard/inventory" icon={<Package className="h-4 w-4" />} label="Inventory" />
+          {(userRole === 'ADMIN' || userRole === 'MANAGER') && (
+            <SidebarItem href="/dashboard/categories" icon={<Settings className="h-4 w-4" />} label="Product Categories" />
+          )}
           <SidebarItem href="/dashboard/sales" icon={<ShoppingCart className="h-4 w-4" />} label="Sales & GST" />
           {userRole !== 'STAFF' && <SidebarItem href="/dashboard/purchases" icon={<Truck className="h-4 w-4" />} label="Purchases" />}
           <SidebarItem href="/dashboard/customers" icon={<Users className="h-4 w-4" />} label="Customers" />
