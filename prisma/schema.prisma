@@ -35,12 +35,22 @@ enum TransactionType {
 // MULTI-TENANCY CORE
 // ----------------------------------------------------------------------------
 model Tenant {
-  id           String   @id @default(uuid())
-  company_name String
-  domain       String?  @unique // Optional: for custom domains/subdomains later
-  subscription String   @default("PENDING") // ACTIVE, SUSPENDED, PENDING
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  id             String   @id @default(uuid())
+  company_name   String
+  domain         String?  @unique // Optional: for custom domains/subdomains later
+  subscription   String   @default("PENDING") // ACTIVE, SUSPENDED, PENDING
+  is_deleted     Boolean  @default(false)
+  
+  // Extended Invoicing & Business Options
+  address        String?  @db.Text
+  gst_number     String?
+  phone          String?
+  email          String?
+  logo_url       String?
+  invoice_prefix String?  @default("INV")
+
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   // Global Relations (All data owned by this tenant)
   users        User[]
@@ -244,4 +254,22 @@ model Transaction {
   updatedAt        DateTime        @updatedAt
 
   @@index([tenant_id])
+}
+
+// ----------------------------------------------------------------------------
+// PLATFORM AUDIT LOGGING
+// ----------------------------------------------------------------------------
+model AuditLog {
+  id             String   @id @default(uuid())
+  super_admin_id String
+  action         String   // e.g. "TENANT_UPDATED", "TENANT_SOFT_DELETED", "TENANT_ADMIN_PASSWORD_RESET"
+  entity_type    String   // e.g. "Tenant", "User"
+  entity_id      String
+  old_values     Json?
+  new_values     Json?
+  createdAt      DateTime @default(now())
+
+  @@index([super_admin_id])
+  @@index([entity_id])
+  @@index([action])
 }

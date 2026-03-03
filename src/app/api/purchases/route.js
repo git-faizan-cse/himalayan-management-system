@@ -15,6 +15,9 @@ export async function GET(req) {
       where: { tenant_id: payload.tenantId },
       include: {
         supplier: { select: { name: true } },
+        tenant: { 
+          select: { company_name: true, address: true, gst_number: true, phone: true, email: true } 
+        },
         items: { include: { product: { select: { name: true, unit: true } } } }
       },
       orderBy: { createdAt: 'desc' }

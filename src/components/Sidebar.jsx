@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Mountain, LayoutDashboard, Package, ShoppingCart, Users, Truck, Receipt, Settings, LogOut, FileSpreadsheet, Shield, ShieldCheck } from "lucide-react";
+import { Mountain, LayoutDashboard, Package, ShoppingCart, Users, Truck, Receipt, Settings, LogOut, FileSpreadsheet, Shield, ShieldCheck, Activity } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
@@ -40,7 +40,11 @@ export function Sidebar() {
           {userRole !== 'STAFF' && userRole !== 'SUPER_ADMIN' && <SidebarItem href="/dashboard" icon={<LayoutDashboard className="h-4 w-4" />} label="Dashboard" />}
           
           {userRole === 'SUPER_ADMIN' && (
-            <SidebarItem href="/dashboard/super-admin" icon={<ShieldCheck className="h-4 w-4" />} label="Platform Administration" />
+            <>
+              <SidebarItem href="/dashboard/super-admin" icon={<ShieldCheck className="h-4 w-4" />} label="Platform Administration" />
+              <SidebarItem href="/dashboard/super-admin/platform-users" icon={<Users className="h-4 w-4" />} label="Platform Administrators" />
+              <SidebarItem href="/dashboard/super-admin/audit" icon={<Activity className="h-4 w-4" />} label="Audit Logs" />
+            </>
           )}
 
           {userRole !== 'SUPER_ADMIN' && (
@@ -57,11 +61,14 @@ export function Sidebar() {
               )}
               <SidebarItem href="/dashboard/expenses" icon={<Receipt className="h-4 w-4" />} label="Expenses" />
               {userRole !== 'STAFF' && <SidebarItem href="/dashboard/reports" icon={<FileSpreadsheet className="h-4 w-4" />} label="Reports" />}
+              
+              {userRole === 'ADMIN' && (
+                <>
+                  <SidebarItem href="/dashboard/settings" icon={<Settings className="h-4 w-4" />} label="Business Settings" />
+                  <SidebarItem href="/dashboard/users" icon={<Shield className="h-4 w-4" />} label="Tenant Users" />
+                </>
+              )}
             </>
-          )}
-
-          {(userRole === 'ADMIN' || userRole === 'SUPER_ADMIN') && (
-            <SidebarItem href="/dashboard/users" icon={<Shield className="h-4 w-4" />} label="System Users" />
           )}
         </div>
       </nav>

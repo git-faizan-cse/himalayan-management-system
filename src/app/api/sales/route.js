@@ -16,7 +16,10 @@ export async function GET(req) {
         tenant_id: payload.tenantId,
       },
       include: {
-        customer: { select: { name: true } },
+        customer: { select: { name: true, phone: true, address: true } },
+        tenant: { 
+          select: { company_name: true, address: true, gst_number: true, phone: true, email: true } 
+        },
         items: {
           include: { product: { select: { name: true, unit: true } } }
         }
@@ -71,11 +74,18 @@ export async function POST(req) {
       total_gst += gst_amount;
     }
 
+    // Fetch Tenant settings to get the dynamic invoice prefix
+    const tenant = await prisma.tenant.findUnique({
+      where: { id: payload.tenantId },
+      select: { invoice_prefix: true }
+    });
+    const prefix = tenant?.invoice_prefix || "INV";
+
     // Generate invoice number specific to the tenant
     const count = await prisma.invoice.count({
       where: { tenant_id: payload.tenantId }
     });
-    const invoice_number = `INV-${String(count + 1).padStart(5, '0')}`;
+    const invoice_number = `${prefix}-${String(count + 1).padStart(5, '0')}`;
 
     // Verify Customer ownership
     const customer = await prisma.customer.findUnique({

@@ -41,9 +41,15 @@ export const InvoicePDF = ({ invoice }) => {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.companyName}>Himalayan Building & Trading</Text>
-            <Text style={styles.companyDetails}>123 Main Bazaar Road, Central District</Text>
-            <Text style={styles.companyDetails}>GSTIN: 07AABCU9603R1ZM | Phone: +91 98765 43210</Text>
+            <Text style={styles.companyName}>{invoice.tenant?.company_name || 'Himalayan Business'}</Text>
+            {invoice.tenant?.address && <Text style={styles.companyDetails}>{invoice.tenant.address}</Text>}
+            <Text style={styles.companyDetails}>
+              {[
+                invoice.tenant?.gst_number ? `GSTIN: ${invoice.tenant.gst_number}` : null,
+                invoice.tenant?.phone ? `Phone: ${invoice.tenant.phone}` : null,
+                invoice.tenant?.email ? `Email: ${invoice.tenant.email}` : null,
+              ].filter(Boolean).join(' | ')}
+            </Text>
           </View>
           <View>
             <Text style={styles.invoiceTitle}>TAX INVOICE</Text>

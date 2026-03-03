@@ -39,9 +39,15 @@ export const PurchaseBillPDF = ({ bill }) => {
         {/* Header */}
         <View style={styles.header}>
           <View>
-            <Text style={styles.companyName}>Himalayan Building & Trading</Text>
-            <Text style={styles.companyDetails}>123 Main Bazaar Road, Central District</Text>
-            <Text style={styles.companyDetails}>GSTIN: 07AABCU9603R1ZM | Phone: +91 98765 43210</Text>
+            <Text style={styles.companyName}>{bill.tenant?.company_name || 'Himalayan Business'}</Text>
+            {bill.tenant?.address && <Text style={styles.companyDetails}>{bill.tenant.address}</Text>}
+            <Text style={styles.companyDetails}>
+              {[
+                bill.tenant?.gst_number ? `GSTIN: ${bill.tenant.gst_number}` : null,
+                bill.tenant?.phone ? `Phone: ${bill.tenant.phone}` : null,
+                bill.tenant?.email ? `Email: ${bill.tenant.email}` : null,
+              ].filter(Boolean).join(' | ')}
+            </Text>
           </View>
           <View>
             <Text style={styles.invoiceTitle}>PURCHASE BILL</Text>
@@ -102,7 +108,7 @@ export const PurchaseBillPDF = ({ bill }) => {
 
         {/* Footer */}
         <View style={styles.footer}>
-          <Text>Himalayan Building & Trading - Internal Purchase Record</Text>
+          <Text>{bill.tenant?.company_name || 'Himalayan Business'} - Internal Purchase Record</Text>
           <Text style={{ marginTop: 4 }}>This is a computer-generated document.</Text>
         </View>
       </Page>

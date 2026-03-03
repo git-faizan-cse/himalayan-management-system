@@ -21,7 +21,7 @@ import {
   DialogTrigger,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { ShieldCheck, Lock, Unlock, Users, PlusCircle, CheckCircle } from "lucide-react";
+import { ShieldCheck, Lock, Unlock, Users, PlusCircle, CheckCircle, Settings, Key, Trash2 } from "lucide-react";
 
 export default function SuperAdminDashboard() {
   const [tenants, setTenants] = useState([]);
@@ -32,6 +32,14 @@ export default function SuperAdminDashboard() {
   const [formData, setFormData] = useState({
     company_name: "", admin_name: "", admin_email: "", admin_username: "", admin_password: ""
   });
+
+  // Configure Dialog State
+  const [isConfigOpen, setIsConfigOpen] = useState(false);
+  const [selectedTenant, setSelectedTenant] = useState(null);
+  const [configData, setConfigData] = useState({
+    company_name: "", address: "", gst_number: "", phone: "", email: "", invoice_prefix: ""
+  });
+  const [newPassword, setNewPassword] = useState("");
 
   const fetchTenants = async () => {
     setLoading(true);
@@ -69,6 +77,9 @@ export default function SuperAdminDashboard() {
       }
       
       fetchTenants();
+      if (selectedTenant && selectedTenant.id === tenantId) {
+         setSelectedTenant({...selectedTenant, subscription: targetStatus});
+      }
     } catch (err) {
       alert("An error occurred");
     }
@@ -93,6 +104,81 @@ export default function SuperAdminDashboard() {
       fetchTenants();
     } catch (err) {
       alert("An error occurred");
+    }
+  };
+
+  const openConfig = async (tenant) => {
+    try {
+      const res = await fetch(`/api/super-admin/tenants/${tenant.id}`);
+      if (res.ok) {
+         const t = await res.json();
+         setSelectedTenant(t);
+         setConfigData({
+           company_name: t.company_name || "",
+           address: t.address || "",
+           gst_number: t.gst_number || "",
+           phone: t.phone || "",
+           email: t.email || "",
+           invoice_prefix: t.invoice_prefix || "INV"
+         });
+         setNewPassword("");
+         setIsConfigOpen(true);
+      } else {
+         alert("Failed to fetch tenant details.");
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleUpdateDetails = async () => {
+    try {
+      const res = await fetch(`/api/super-admin/tenants/${selectedTenant.id}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(configData)
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Update failed");
+      alert("Tenant details updated successfully.");
+      fetchTenants();
+    } catch(err) {
+      alert(err.message);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!newPassword || newPassword.trim() === '') {
+      alert("Please enter a new password");
+      return;
+    }
+    if (!confirm("Are you sure you want to forcibly reset the primary Admin's password for this business?")) return;
+    
+    try {
+      const res = await fetch(`/api/super-admin/tenants/${selectedTenant.id}/reset-admin`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ new_password: newPassword })
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Reset failed");
+      alert("Password reset successfully.");
+      setNewPassword("");
+    } catch(err) {
+      alert(err.message);
+    }
+  };
+
+  const handleSoftDelete = async () => {
+    if (!confirm("WARNING: Are you sure you want to soft-delete this business? They will immediately lose access, and the action will be audit-logged.")) return;
+    try {
+      const res = await fetch(`/api/super-admin/tenants/${selectedTenant.id}`, {
+        method: "DELETE"
+      });
+      if (!res.ok) throw new Error((await res.json()).error || "Delete failed");
+      alert("Tenant deleted and suspended successfully.");
+      setIsConfigOpen(false);
+      fetchTenants();
+    } catch(err) {
+      alert(err.message);
     }
   };
 
@@ -217,14 +303,8 @@ export default function SuperAdminDashboard() {
                         <CheckCircle className="h-4 w-4 mr-1" /> Approve
                       </Button>
                     ) : (
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => toggleSubscription(t.id, t.subscription, t.subscription === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE')}
-                        className={t.subscription === 'ACTIVE' ? 'text-red-600 hover:bg-red-50 hover:text-red-700' : 'text-green-600 hover:bg-green-50 hover:text-green-700'}
-                      >
-                        {t.subscription === 'ACTIVE' ? <Lock className="h-4 w-4 mr-1" /> : <Unlock className="h-4 w-4 mr-1" />}
-                        {t.subscription === 'ACTIVE' ? 'Suspend' : 'Activate'}
+                      <Button size="sm" variant="outline" onClick={() => openConfig(t)}>
+                        <Settings className="h-4 w-4 mr-1" /> Configure
                       </Button>
                     )}
                   </TableCell>
@@ -234,6 +314,98 @@ export default function SuperAdminDashboard() {
           </Table>
         </CardContent>
       </Card>
+
+      {/* Configuration Modal */}
+      <Dialog open={isConfigOpen} onOpenChange={setIsConfigOpen}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Configure Business: {selectedTenant?.company_name}</DialogTitle>
+          </DialogHeader>
+          
+          {selectedTenant && (
+            <div className="space-y-6 py-4">
+              
+              {/* STATUS TOGGLE */}
+              <div className="flex items-center justify-between p-4 border rounded-lg bg-zinc-50 dark:bg-zinc-900 border-zinc-200 dark:border-zinc-800">
+                <div>
+                  <h4 className="font-semibold text-sm">Account Status: <span className={selectedTenant.subscription === 'ACTIVE' ? 'text-green-600' : 'text-red-600'}>{selectedTenant.subscription}</span></h4>
+                  <p className="text-xs text-zinc-500">Toggle whether this business has active access to the SaaS.</p>
+                </div>
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => toggleSubscription(selectedTenant.id, selectedTenant.subscription, selectedTenant.subscription === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE')}
+                  className={selectedTenant.subscription === 'ACTIVE' ? 'text-red-600 hover:bg-red-50' : 'text-green-600 hover:bg-green-50'}
+                >
+                  {selectedTenant.subscription === 'ACTIVE' ? <Lock className="h-4 w-4 mr-1" /> : <Unlock className="h-4 w-4 mr-1" />}
+                  {selectedTenant.subscription === 'ACTIVE' ? 'Suspend Access' : 'Activate Access'}
+                </Button>
+              </div>
+
+              {/* DETAILS FORM */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium">Business Details</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label>Company Name</Label>
+                    <Input value={configData.company_name} onChange={e => setConfigData({...configData, company_name: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>GST Number</Label>
+                    <Input value={configData.gst_number} onChange={e => setConfigData({...configData, gst_number: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Email</Label>
+                    <Input value={configData.email} onChange={e => setConfigData({...configData, email: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Phone</Label>
+                    <Input value={configData.phone} onChange={e => setConfigData({...configData, phone: e.target.value})} />
+                  </div>
+                  <div className="space-y-2 col-span-2">
+                    <Label>Address</Label>
+                    <Input value={configData.address} onChange={e => setConfigData({...configData, address: e.target.value})} />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Invoice Prefix</Label>
+                    <Input value={configData.invoice_prefix} onChange={e => setConfigData({...configData, invoice_prefix: e.target.value})} />
+                  </div>
+                </div>
+                <Button onClick={handleUpdateDetails} className="mt-2 text-white bg-blue-600 hover:bg-blue-700">Save Details</Button>
+              </div>
+
+              <hr className="dark:border-zinc-800" />
+
+              {/* ADMIN PASSWORD RESET */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-medium text-purple-700 dark:text-purple-400">Emergency Access Recovery</h3>
+                <div className="flex gap-4 items-end">
+                  <div className="space-y-2 flex-1">
+                    <Label>New Password for Primary Admin</Label>
+                    <Input type="password" placeholder="Enter new password..." value={newPassword} onChange={e => setNewPassword(e.target.value)} />
+                  </div>
+                  <Button onClick={handleResetPassword} variant="outline" className="border-purple-200 text-purple-700 hover:bg-purple-50 dark:hover:bg-purple-900/20">
+                    <Key className="w-4 h-4 mr-2"/> Reset Password
+                  </Button>
+                </div>
+                <p className="text-xs text-zinc-500">This instantly overwrites the password for the primary Admin (`role === 'ADMIN'`) of this tenant and creates an audit log entry.</p>
+              </div>
+
+              <hr className="dark:border-zinc-800" />
+
+              {/* DANGEROUS DELETE */}
+              <div className="space-y-4 p-4 border border-red-200 bg-red-50 dark:bg-red-950/20 dark:border-red-900/50 rounded-lg">
+                <h3 className="text-lg font-medium text-red-600 flex items-center gap-2"><Trash2 className="w-5 h-5"/> Danger Zone</h3>
+                <p className="text-sm text-red-700 dark:text-red-400">Soft-deletes this tenant. The data remains in the database for compliance, but the tenant is removed from the active system and all its users are locked out.</p>
+                <Button onClick={handleSoftDelete} variant="destructive">
+                  Delete Business
+                </Button>
+              </div>
+
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

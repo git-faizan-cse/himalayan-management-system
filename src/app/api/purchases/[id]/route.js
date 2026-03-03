@@ -1,6 +1,36 @@
 import { NextResponse } from 'next/server';
 import { prisma } from '@/lib/prisma';
 import { verifySession } from '@/lib/auth';
+export async function GET(req, { params }) {
+  try {
+    const sessionCookie = req.cookies.get('himalaya_session')?.value;
+    const payload = await verifySession(sessionCookie);
+
+    if (!payload?.tenantId) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const purchase = await prisma.purchaseBill.findFirst({
+      where: { id, tenant_id: payload.tenantId },
+      include: {
+        supplier: true,
+        tenant: {
+          select: { company_name: true, address: true, gst_number: true, phone: true, email: true }
+        },
+        items: {
+          include: { product: { select: { name: true, unit: true } } }
+        }
+      }
+    });
+
+    if (!purchase) return NextResponse.json({ error: 'Purchase Bill not found' }, { status: 404 });
+    return NextResponse.json(purchase);
+  } catch (error) {
+    console.error('Fetch purchase error:', error);
+    return NextResponse.json({ error: 'Failed to fetch purchase bill' }, { status: 500 });
+  }
+}
 
 export async function PUT(req, { params }) {
   try {

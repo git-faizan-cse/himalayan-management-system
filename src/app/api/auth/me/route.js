@@ -10,21 +10,27 @@ export async function GET(req) {
     const payload = await verifySession(sessionCookie);
     if (!payload) return NextResponse.json({ role: null, tenantId: null, tenantName: null });
 
-    let tenantName = null;
+    let tenant = null;
     if (payload.tenantId) {
-      const tenant = await prisma.tenant.findUnique({
+      tenant = await prisma.tenant.findUnique({
         where: { id: payload.tenantId },
-        select: { company_name: true }
+        select: { 
+          id: true,
+          company_name: true,
+          address: true,
+          gst_number: true,
+          phone: true,
+          email: true,
+          invoice_prefix: true
+        }
       });
-      if (tenant) {
-        tenantName = tenant.company_name;
-      }
     }
 
     return NextResponse.json({ 
       role: payload.role || null,
       tenantId: payload.tenantId || null,
-      tenantName 
+      tenantName: tenant?.company_name || null,
+      tenant: tenant || null
     });
   } catch (e) {
     return NextResponse.json({ role: null, tenantId: null, tenantName: null });

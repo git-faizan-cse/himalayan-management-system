@@ -12,6 +12,7 @@ export async function GET(req) {
     }
 
     const tenants = await prisma.tenant.findMany({
+      where: { is_deleted: false },
       include: {
         _count: {
           select: { users: true }
@@ -47,9 +48,27 @@ export async function PATCH(req) {
        return NextResponse.json({ error: 'Cannot alter your own tenant subscription status' }, { status: 400 });
     }
 
-    const updatedTenant = await prisma.tenant.update({
-      where: { id: targetTenantId },
-      data: { subscription }
+    const oldTenant = await prisma.tenant.findUnique({ where: { id: targetTenantId } });
+    if (!oldTenant) return NextResponse.json({ error: 'Tenant not found.' }, { status: 404 });
+
+    const updatedTenant = await prisma.$transaction(async (tx) => {
+      const updated = await tx.tenant.update({
+        where: { id: targetTenantId },
+        data: { subscription }
+      });
+
+      await tx.auditLog.create({
+        data: {
+          super_admin_id: payload.userId,
+          action: 'TENANT_STATUS_CHANGED',
+          entity_type: 'Tenant',
+          entity_id: targetTenantId,
+          old_values: { subscription: oldTenant.subscription },
+          new_values: { subscription: updated.subscription }
+        }
+      });
+
+      return updated;
     });
 
     return NextResponse.json(updatedTenant);

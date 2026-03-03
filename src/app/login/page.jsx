@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { Mountain } from "lucide-react";
+import { Mountain, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,7 +44,13 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-950 p-4">
+    <div className="min-h-screen flex flex-col items-center justify-center bg-zinc-50 dark:bg-zinc-950 p-4 relative">
+      <Link href="/" className="absolute top-6 left-6 md:top-8 md:left-8">
+        <Button variant="ghost" size="sm" className="text-zinc-500 hover:bg-zinc-200/50 hover:text-zinc-900 dark:hover:bg-zinc-800 dark:hover:text-zinc-100">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Website
+        </Button>
+      </Link>
+      
       <div className="w-full max-w-md">
         <div className="flex flex-col items-center space-y-2 mb-8 text-center">
           <div className="bg-blue-600 p-3 rounded-xl mb-2">

@@ -16,6 +16,9 @@ export async function GET(req, { params }) {
       where: { id, tenant_id: payload.tenantId },
       include: {
         customer: true,
+        tenant: {
+          select: { company_name: true, address: true, gst_number: true, phone: true, email: true }
+        },
         items: {
           include: { product: { select: { name: true, unit: true } } }
         }

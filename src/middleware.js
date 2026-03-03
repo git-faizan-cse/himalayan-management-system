@@ -87,18 +87,8 @@ export async function middleware(req) {
     }
   } // <-- Closes if (isApiRoute || isDashboardRoute)
 
-  // Handle root path: redirect logged-in users to dashboard, let public users see landing page
+  // Always let the root path render the public landing page, regardless of session
   if (pathname === '/') {
-    const sessionCookie = req.cookies.get('himalaya_session')?.value;
-    if (sessionCookie) {
-         try {
-             const payload = await verifySession(sessionCookie);
-             if (payload && payload.userId) {
-                 return NextResponse.redirect(new URL('/dashboard', req.url));
-             }
-         } catch(e) {}
-    }
-    // Allow public users to see the landing page
     return NextResponse.next();
   }
 
