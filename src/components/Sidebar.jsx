@@ -5,8 +5,9 @@ import { Mountain, LayoutDashboard, Package, ShoppingCart, Users, Truck, Receipt
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { X } from "lucide-react"; // Import X for close button on mobile
 
-export function Sidebar() {
+export function Sidebar({ onClose }) {
   const router = useRouter();
   const [userRole, setUserRole] = useState(null);
   const [tenantName, setTenantName] = useState("Loading...");
@@ -28,11 +29,14 @@ export function Sidebar() {
 
   return (
     <div className="flex h-screen w-64 flex-col border-r bg-zinc-50 dark:bg-zinc-950 dark:border-zinc-800">
-      <div className="flex h-14 items-center border-b px-4 dark:border-zinc-800">
+      <div className="flex h-14 items-center justify-between border-b px-4 dark:border-zinc-800">
         <Link href="/dashboard" className="flex items-center gap-2 font-semibold text-blue-600 dark:text-blue-500">
           <Mountain className="h-6 w-6 shrink-0" />
-          <span className="text-zinc-900 dark:text-zinc-100 truncate w-40" title={tenantName}>{tenantName}</span>
+          <span className="text-zinc-900 dark:text-zinc-100 truncate w-32" title={tenantName}>{tenantName}</span>
         </Link>
+        <Button variant="ghost" size="icon" className="md:hidden" onClick={onClose}>
+          <X className="h-5 w-5" />
+        </Button>
       </div>
 
       <nav className="flex-1 overflow-auto py-4">
