@@ -161,7 +161,7 @@ export async function PATCH(req, { params }) {
        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    if (!payload?.role || payload.role === 'STAFF') {
+    if (!payload?.role || (payload.role !== 'SUPER_ADMIN' && payload.role !== 'ADMIN' && payload.role !== 'MANAGER' && payload.role !== 'STAFF')) {
       return NextResponse.json({ error: 'Forbidden: Unauthorized' }, { status: 403 });
     }
 
