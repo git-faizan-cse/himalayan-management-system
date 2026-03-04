@@ -11,7 +11,7 @@ export default function LandingPage() {
       <header className="px-6 lg:px-14 h-16 flex items-center border-b bg-white/80 backdrop-blur-md sticky top-0 z-50">
         <Link className="flex items-center justify-center gap-2" href="#">
           <Mountain className="h-6 w-6 text-blue-600" />
-          <span className="font-bold text-xl tracking-tight text-blue-900">Himalayan SaaS</span>
+          <span className="font-bold text-xl tracking-tight text-blue-900">Dealer Desk</span>
         </Link>
         <nav className="ml-auto flex gap-4 sm:gap-6 items-center">
           <Link className="text-sm font-medium hover:underline underline-offset-4 text-zinc-600 hover:text-blue-600" href="#features">
@@ -95,7 +95,7 @@ export default function LandingPage() {
       {/* Footer */}
       <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t bg-white">
         <p className="text-xs text-zinc-500 dark:text-zinc-400">
-          © 2026 Himalayan SaaS Platform. All rights reserved.
+          © 2026 Himalayan SaaS Platform. Built for Dealers. All rights reserved.
         </p>
         <nav className="sm:ml-auto flex gap-4 sm:gap-6">
           <Link className="text-xs hover:underline underline-offset-4 text-zinc-500" href="#">
