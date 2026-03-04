@@ -2,9 +2,11 @@
 
 import Link from 'next/link';
 import { Button } from '@/components/ui/button';
-import { Mountain, CheckCircle2, ArrowRight, ShieldCheck, Zap, BarChart3 } from 'lucide-react';
+import { Mountain, CheckCircle2, ArrowRight, ShieldCheck, Zap, BarChart3, Menu, X } from 'lucide-react';
+import { useState } from 'react';
 
 export default function LandingPage() {
+  const [isMenuOpen, setIsMenuOpen] = useState(false);
   return (
     <div className="flex flex-col min-h-screen">
       {/* Navbar */}
@@ -13,18 +15,53 @@ export default function LandingPage() {
           <Mountain className="h-6 w-6 text-blue-600" />
           <span className="font-bold text-xl tracking-tight text-blue-900">Dealer Desk</span>
         </Link>
-        <nav className="ml-auto flex gap-4 sm:gap-6 items-center">
+        {/* Desktop Nav Links */}
+        <nav className="ml-auto hidden sm:flex gap-6 items-center">
           <Link className="text-sm font-medium hover:underline underline-offset-4 text-zinc-600 hover:text-blue-600" href="#features">
             Features
           </Link>
           <Link className="text-sm font-medium hover:underline underline-offset-4 text-zinc-600 hover:text-blue-600" href="/login">
             Sign In
           </Link>
+        </nav>
+
+        {/* Global Nav Actions */}
+        <div className="ml-auto sm:ml-6 flex items-center gap-2">
           <Button asChild size="sm" className="bg-blue-600 hover:bg-blue-700">
             <Link href="/register">Get Started</Link>
           </Button>
-        </nav>
+
+          {/* Mobile Menu Button */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            className="sm:hidden"
+            onClick={() => setIsMenuOpen(!isMenuOpen)}
+          >
+            {isMenuOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
+          </Button>
+        </div>
       </header>
+
+      {/* Mobile Menu Overlay */}
+      {isMenuOpen && (
+        <div className="fixed top-16 left-0 right-0 bg-white border-b shadow-lg p-4 flex flex-col gap-4 sm:hidden z-40">
+            <Link 
+              className="text-base font-medium text-zinc-600 hover:text-blue-600 p-2 border-b" 
+              href="#features"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Features
+            </Link>
+            <Link 
+              className="text-base font-medium text-zinc-600 hover:text-blue-600 p-2" 
+              href="/login"
+              onClick={() => setIsMenuOpen(false)}
+            >
+              Sign In
+            </Link>
+        </div>
+      )}
 
       <main className="flex-1">
         {/* Hero Section */}
@@ -39,13 +76,13 @@ export default function LandingPage() {
                   The all-in-one ERP and CRM platform for modern businesses. Invoicing, inventory, purchasing, and reporting — unified.
                 </p>
               </div>
-              <div className="flex flex-col sm:flex-row gap-4">
-                <Button asChild size="lg" className="h-12 px-8 bg-blue-600 hover:bg-blue-700 text-lg">
+              <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto">
+                <Button asChild size="lg" className="h-12 px-8 w-full sm:w-auto bg-blue-600 hover:bg-blue-700 text-lg flex items-center justify-center">
                   <Link href="/register">
                     Open Your Free Account <ArrowRight className="ml-2 h-5 w-5" />
                   </Link>
                 </Button>
-                <Button asChild variant="outline" size="lg" className="h-12 px-8 text-lg">
+                <Button asChild variant="outline" size="lg" className="h-12 px-8 text-lg w-full sm:w-auto flex items-center justify-center">
                   <Link href="/login">Login to Dashboard</Link>
                 </Button>
               </div>
@@ -62,7 +99,7 @@ export default function LandingPage() {
                 A seamless toolkit designed to prevent losses, track growth, and streamline operations.
               </p>
             </div>
-            <div className="mx-auto grid max-w-5xl items-center gap-6 py-12 lg:grid-cols-3 md:gap-10">
+            <div className="mx-auto grid max-w-5xl gap-6 py-12 md:grid-cols-2 lg:grid-cols-3 md:gap-10">
               {/* Feature 1 */}
               <div className="flex flex-col items-center space-y-4 text-center p-6 bg-white rounded-2xl shadow-sm border border-zinc-100 h-full">
                 <div className="p-4 bg-blue-100 rounded-full">
