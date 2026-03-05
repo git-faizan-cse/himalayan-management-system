@@ -8,7 +8,7 @@ import { useState } from 'react';
 export default function LandingPage() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen overflow-x-hidden">
       {/* Navbar */}
       <header className="px-6 lg:px-14 h-16 flex items-center border-b bg-white/80 backdrop-blur-md sticky top-0 z-50">
         <Link className="flex items-center justify-center gap-2" href="#">
@@ -65,7 +65,7 @@ export default function LandingPage() {
 
       <main className="flex-1">
         {/* Hero Section */}
-        <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-dot-pattern">
+        <section className="w-full py-12 md:py-16 lg:py-24 xl:py-32 bg-dot-pattern">
           <div className="container px-4 md:px-6 mx-auto">
             <div className="flex flex-col items-center space-y-8 text-center">
               <div className="space-y-4 max-w-3xl">
@@ -85,6 +85,26 @@ export default function LandingPage() {
                 <Button asChild variant="outline" size="lg" className="h-12 px-8 text-lg w-full sm:w-auto flex items-center justify-center">
                   <Link href="/login">Login to Dashboard</Link>
                 </Button>
+              </div>
+
+              {/* Demo Credentials */}
+              <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-6 text-left bg-white/60 backdrop-blur-sm p-6 rounded-2xl border border-zinc-200 shadow-sm w-full max-w-2xl">
+                <div className="space-y-2">
+                  <p className="font-semibold text-zinc-900 flex items-center gap-2 border-b pb-2">
+                    <ShieldCheck className="h-4 w-4 text-blue-600" />
+                    Demo Admin Account
+                  </p>
+                  <p className="text-sm text-zinc-600"><span className="font-medium text-zinc-800">Email:</span> demo@example.com</p>
+                  <p className="text-sm text-zinc-600"><span className="font-medium text-zinc-800">Password:</span> demo1234</p>
+                </div>
+                <div className="space-y-2">
+                  <p className="font-semibold text-zinc-900 flex items-center gap-2 border-b pb-2">
+                    <Zap className="h-4 w-4 text-amber-500" />
+                    Demo Staff Account
+                  </p>
+                  <p className="text-sm text-zinc-600"><span className="font-medium text-zinc-800">Email:</span> demostaff@example.com</p>
+                  <p className="text-sm text-zinc-600"><span className="font-medium text-zinc-800">Password:</span> demo1234</p>
+                </div>
               </div>
             </div>
           </div>
